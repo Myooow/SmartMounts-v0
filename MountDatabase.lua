@@ -719,7 +719,7 @@ end
 
 -- Vérifier si le joueur possède une monture
 MountDatabase.HasMount = function(spellId)
-    return IsSpellKnown(spellId)
+    return IsPlayerSpell(spellId)
 end
 
 -- Obtenir le nombre de montures collectées
