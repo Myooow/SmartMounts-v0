@@ -293,8 +293,7 @@ function SmartMounts_CreateMountItem(parent)
     item.icon = item:CreateTexture(nil, "ARTWORK")
     item.icon:SetSize(60, 60)
     item.icon:SetPoint("LEFT", 8, 0)
-    item.icon:SetTexture("Interface\\Icons\\Ability_Mount_WhiteDireWolf")
-    
+
     -- Nom de la monture
     item.nameText = item:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     item.nameText:SetPoint("TOPLEFT", item.icon, "TOPRIGHT", 10, 0)
@@ -324,6 +323,14 @@ end
 -- Configuration d'un élément de monture
 -------------------------------------------------
 function SmartMounts_SetupMountItem(item, mountName, mountData)
+    -- Icône
+    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDatabase
+    if not iconTexture or iconTexture == "" then                        -- fallback si champ manquant
+        iconTexture = select(3, GetSpellInfo(mountData.spellId))           -- ou celle du sort
+                or "Interface\\Icons\\INV_Misc_QuestionMark"            -- secours
+    end
+    item.icon:SetTexture(iconTexture)
+
     -- Nom
     local nameColor = MountDatabase.HasMount(mountData.spellId) and "|cff00FF00" or "|cffFFFFFF"
     item.nameText:SetText(nameColor .. mountName)

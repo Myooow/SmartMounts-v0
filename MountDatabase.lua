@@ -19,7 +19,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 317, x = 38.6, y = 20 },
         description = "Dropped by Baron Rivendare in Stratholme",
-        icon = "Interface\\Icons\\Ability_Mount_Undeadhorse",
         guide = {
             {
                 step = 1,
@@ -55,7 +54,6 @@ MountDatabase.mounts = {
         dropChance = "Very Rare",
         coords = { mapId = 319 },
         description = "Dropped by various bosses in AQ40",
-        icon = "Interface\\Icons\\INV_Jewelry_Necklace_19"
     },
 
     -- THE BURNING CRUSADE MOUNTS
@@ -72,7 +70,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 334, x = 50.6, y = 15.2 },
         description = "Dropped by Kael'thas Sunstrider in Tempest Keep",
-        icon = "Interface\\Icons\\Ability_Mount_PhoenixMount",
         guide = {
             {
                 step = 1,
@@ -117,7 +114,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 350, x = 46.6, y = 82.6 },
         description = "Dropped by Attumen the Huntsman in Karazhan",
-        icon = "Interface\\Icons\\Ability_Mount_Nightmarehorse",
         guide = {
             {
                 step = 1,
@@ -191,7 +187,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 191, x = 49.8, y = 52.8 },
         description = "Dropped by The Lich King in ICC 25 Heroic",
-        icon = "Interface\\Icons\\Ability_Mount_Nightmarehorse",
         guide = {
             {
                 step = 1,
@@ -242,7 +237,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 150, x = 68, y = 40.8 },
         description = "Dropped by Yogg-Saron (0 Keepers) in Ulduar",
-        icon = "Interface\\Icons\\INV_Gizmo_Khoriumpowercore",
         guide = {
             {
                 step = 1,
@@ -293,7 +287,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 141, x = 39, y = 51.8 },
         description = "Dropped by Malygos in Eye of Eternity",
-        icon = "Interface\\Icons\\Ability_Mount_Drake_Blue"
     },
     ["Reins of the Azure Drake"] = {
         expansion = "Wrath of the Lich King",
@@ -308,7 +301,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 141, x = 39, y = 51.8 },
         description = "Dropped by Malygos in Eye of Eternity",
-        icon = "Interface\\Icons\\Ability_Mount_Drake_Azure"
     },
     ["Reins of the Blue Proto-Drake"] = {
         expansion = "Wrath of the Lich King",
@@ -371,7 +363,6 @@ MountDatabase.mounts = {
         location = "Any expansion zone pools",
         dropChance = "0.01%",
         description = "Extremely rare catch from fishing pools",
-        icon = "Interface\\Icons\\Ability_Hunter_Pet_Turtle"
     },
 
     -- CATACLYSM MOUNTS
@@ -430,7 +421,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 367, x = 64.3, y = 38 },
         description = "Dropped by Alysrazor in Firelands",
-        icon = "Interface\\Icons\\Ability_Mount_Fireravensummon",
         guide = {
             {
                 step = 1,
@@ -564,7 +554,6 @@ MountDatabase.mounts = {
         blackMarket = true,
         coords = { mapId = 471, x = 21.7, y = 51.1 },
         description = "Dropped by Elegon in Mogu'shan Vaults",
-        icon = "Interface\\Icons\\Ability_Mount_Celestialdragonflydragon",
         guide = {
             {
                 step = 1,
