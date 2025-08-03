@@ -439,3 +439,12 @@ SLASH_SMARTMOUNTS2 = "/sm"
 SlashCmdList["SMARTMOUNTS"] = function(msg)
     SmartMounts_ShowMainFrame()
 end
+
+SLASH_SMOUNTINFO1 = "/mountinfo"
+SlashCmdList["SMOUNTINFO"] = function()
+    if MountDatabase and MountDatabase.testdebug then
+        MountDatabase.testdebug()
+    else
+        print("❌ MountDatabase.DebugPrintAllMountInfo introuvable.")
+    end
+end

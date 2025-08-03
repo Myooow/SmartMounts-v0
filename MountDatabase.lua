@@ -2431,6 +2431,54 @@ MountDatabase.GetTotalCount = function()
     return c
 end
 
+MountDatabase.GetAllMountIDs = function()
+    if not C_MountJournal then return {} end
+    return C_MountJournal.GetMountIDs() or {}
+end
+
+MountDatabase.testdebug = function()
+        local name, spellID, icon, isActive, isUsable, sourceType, isFavorite, isFactionSpecific,
+        faction, shouldHideOnChar, isCollected, mountID, isSteadyFlight =
+        C_MountJournal.GetMountInfoByID(442)
+
+        local creatureDisplayInfoID, description, source, isSelfMount, mountTypeID,
+        uiModelSceneID, animID, spellVisualKitID, disablePlayerMountPreview =
+        C_MountJournal.GetMountInfoExtraByID(442)
+
+        print(string.format(
+            "%s | spellID: %d | mountID: %d | source: %s | description: %s | Faction: %s | Collected: %s",
+            name or "?", spellID or 0, mountID,
+            source or "unknown", description or "no desc",
+            isFactionSpecific and (faction == 0 and "Horde" or "Alliance") or "Neutral",
+            isCollected and "yes" or "no"
+        ))
+end
+
+
+MountDatabase.DebugPrintAllMountInfo = function()
+    if not C_MountJournal then
+        print("C_MountJournal non disponible.")
+        return
+    end
+
+    for _, mountID in ipairs(C_MountJournal.GetMountIDs()) do
+        local name, spellID, icon, isActive, isUsable, sourceType,
+              isFavorite, isFactionSpecific, faction, hideOnChar, isCollected =
+              C_MountJournal.GetMountInfoByID(mountID)
+
+        local creatureDisplayID, description, source, isSelfMount, mountType =
+              C_MountJournal.GetMountInfoExtraByID(mountID)
+
+        print(string.format(
+            "%s | spellID: %d | mountID: %d | %s | %s | Faction: %s | Collected: %s",
+            name or "?", spellID or 0, mountID,
+            source or "unknown", description or "no desc",
+            isFactionSpecific and (faction == 0 and "Horde" or "Alliance") or "Neutral",
+            isCollected and "yes" or "no"
+        ))
+    end
+end
+
 -- Export de la base de données
 addonTable.MountDatabase = MountDatabase
 return MountDatabase
