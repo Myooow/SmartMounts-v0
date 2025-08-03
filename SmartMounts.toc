@@ -1,0 +1,18 @@
+## Interface: 110002
+## Title: SmartMounts
+## Notes: Gestionaire de montures rares avec interface moderne
+## Author: VotreNom
+## Version: 1.0.0
+## SavedVariables: SmartMountsDB
+## OptionalDeps: LibStub, LibDataBroker-1.1, LibDBIcon-1.0
+
+# Libraries (si vous les incluez dans votre addon)
+# Libs\LibStub\LibStub.lua
+# Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua  
+# Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+# Base de données des montures
+MountDatabase.lua
+
+# Interface principale
+SmartMounts.lua
