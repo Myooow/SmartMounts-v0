@@ -356,11 +356,11 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     
     -- Status
     if MountDatabase.HasMount(mountData.spellId) then
-        item.statusText:SetText("|cff00FF00✓ COLLECTÉ")
+        item.statusText:SetText("|cff00FF00COLLECTÉ")
         item:SetBackdropColor(0.0, 0.2, 0.0, 0.8)
         item:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
     else
-        item.statusText:SetText("|cffFF0000✗ MANQUANT")
+        item.statusText:SetText("|cffFF0000MANQUANT")
         item:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
