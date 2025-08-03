@@ -244,8 +244,17 @@ function SmartMounts_UpdateMountList()
         end
     end
     
-    -- Trier par nom
-    table.sort(filteredMounts, function(a, b) return a.name < b.name end)
+    -- Trier par extension PUIS par nom
+    local order = MountDatabase.EXPANSION_ORDER or {}
+    table.sort(filteredMounts, function(a, b)
+        local oa = order[a.data.expansion] or math.huge
+        local ob = order[b.data.expansion] or math.huge
+        if oa == ob then
+            return a.name < b.name          -- même extension → ordre alpha
+        else
+            return oa < ob                  -- sinon plus ancien d'abord
+        end
+    end)
     
     -- Créer les éléments de la liste
     local yOffset = -5
