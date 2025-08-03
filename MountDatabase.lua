@@ -1,7 +1,16 @@
 local addonName, addonTable = ...
 
+
 -- Base de données consolidée des montures rares
 local MountDatabase = {}
+
+MountDatabase.EXPANSION_ORDER = {
+    ["Classic"] = 1, 
+    ["The Burning Crusade"] = 2,
+    ["Wrath of the Lich King"] = 3,
+    ["Cataclysm"] = 4,
+    ["Mists of Pandaria"] = 5
+ }
 
 -- Structure des données des montures
 MountDatabase.mounts = {
@@ -688,18 +697,31 @@ MountDatabase.GetMountBySpellId = function(spellId)
 end
 
 MountDatabase.GetExpansions = function()
-    local expansions = {}
-    for name, data in pairs(MountDatabase.mounts) do
-        if not expansions[data.expansion] then
-            expansions[data.expansion] = true
+    -- 1) Collecte les extensions présentes dans la base
+    local found = {}
+    for _, data in pairs(MountDatabase.mounts) do
+        found[data.expansion] = true
+    end
+
+    -- 2) Passe le set en liste
+    local list = {}
+    for expansion in pairs(found) do
+        table.insert(list, expansion)
+    end
+
+    -- 3) Trie selon l’ordre défini, puis par nom si même rang
+    local order = MountDatabase.EXPANSION_ORDER or {}
+    table.sort(list, function(a, b)
+        local oa = order[a] or math.huge   -- inconnues vont à la fin
+        local ob = order[b] or math.huge
+        if oa == ob then                   -- même rang ? -> alphabétique
+            return a < b
+        else
+            return oa < ob                 -- plus petit rang = plus ancien
         end
-    end
-    local sortedExpansions = {}
-    for expansion in pairs(expansions) do
-        table.insert(sortedExpansions, expansion)
-    end
-    table.sort(sortedExpansions)
-    return sortedExpansions
+    end)
+
+    return list
 end
 
 MountDatabase.GetSources = function()
