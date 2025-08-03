@@ -269,35 +269,38 @@ function SmartMounts_UpdateMountList()
 
     -- Filtrer les montures
     local filteredMounts = {}
-    for _, mountData in pairs(MountDB) do
-        local shouldShow = true
-        
-        -- Filtre de recherche
-        if searchText ~= "" then
-            if not string.find(mountData.name:lower(), searchText) and 
-               not string.find(mountData.location:lower(), searchText) and
-               not string.find((mountData.boss or ""):lower(), searchText) then
-                shouldShow = false
+    for mountId, mountData in pairs(MountDB) do
+        -- Vérifier que c'est bien une entrée de monture (pas une fonction utilitaire)
+        if type(mountData) == "table" and mountData.name and mountData.spellId then
+            local shouldShow = true
+            
+            -- Filtre de recherche
+            if searchText ~= "" then
+                if not string.find(mountData.name:lower(), searchText) and 
+                   not string.find((mountData.location or ""):lower(), searchText) and
+                   not string.find((mountData.boss or ""):lower(), searchText) then
+                    shouldShow = false
+                end
             end
-        end
-        
-        -- Filtre par catégorie
-        if shouldShow then
-            if currentFilter == "collected" then
-                shouldShow = MountDB.HasMount(mountData.spellId)
-            elseif currentFilter == "missing" then
-                shouldShow = not MountDB.HasMount(mountData.spellId)
-            elseif currentFilter ~= "all" then
-                shouldShow = (mountData.category == currentFilter)
+            
+            -- Filtre par catégorie
+            if shouldShow then
+                if currentFilter == "collected" then
+                    shouldShow = MountDB.HasMount(mountData.spellId)
+                elseif currentFilter == "missing" then
+                    shouldShow = not MountDB.HasMount(mountData.spellId)
+                elseif currentFilter ~= "all" then
+                    shouldShow = (mountData.category == currentFilter)
+                end
             end
-        end
-        
-        if shouldShow then
-            table.insert(filteredMounts, {name = mountName, data = mountData})
+            
+            if shouldShow then
+                table.insert(filteredMounts, {name = mountData.name, data = mountData})
+            end
         end
     end
     
-    -- -- Trier par extension PUIS par nom
+    -- Trier par extension PUIS par nom
     local order = MountDB.CATEGORY_ORDER or {}
     table.sort(filteredMounts, function(a, b)
         local oa = order[a.data.category] or math.huge
@@ -305,7 +308,7 @@ function SmartMounts_UpdateMountList()
         if oa == ob then
             return a.data.name < b.data.name          -- même extension → ordre alpha
         else
-            return oa < ob                  -- sinon plus ancien d'abord
+            return oa < ob                            -- sinon plus ancien d'abord
         end
     end)
     
@@ -332,7 +335,7 @@ function SmartMounts_UpdateMountList()
         local collected = MountDB.GetCollectedCount()
         local total     = MountDB.GetTotalCount()
         SmartMountsFrame.statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
-                                    usable, journal, collected, total, (collected/total)*100))
+                                    usable, journal, collected, total))
     end
 end
 
