@@ -71,8 +71,8 @@ function SmartMounts_ShowMainFrame()
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 32,
-        edgeSize = 16,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+        edgeSize = 32,
+        insets = { left = 6, right = 6, top = 6, bottom = 6 }
     })
     SmartMountsFrame:SetBackdropColor(0, 0, 0, 0.95)
     SmartMountsFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
