@@ -244,8 +244,17 @@ function SmartMounts_UpdateMountList()
         end
     end
     
-    -- Trier par nom
-    table.sort(filteredMounts, function(a, b) return a.name < b.name end)
+    -- Trier par extension PUIS par nom
+    local order = MountDatabase.EXPANSION_ORDER or {}
+    table.sort(filteredMounts, function(a, b)
+        local oa = order[a.data.expansion] or math.huge
+        local ob = order[b.data.expansion] or math.huge
+        if oa == ob then
+            return a.name < b.name          -- même extension → ordre alpha
+        else
+            return oa < ob                  -- sinon plus ancien d'abord
+        end
+    end)
     
     -- Créer les éléments de la liste
     local yOffset = -5
@@ -356,11 +365,11 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     
     -- Status
     if MountDatabase.HasMount(mountData.spellId) then
-        item.statusText:SetText("|cff00FF00✓ COLLECTÉ")
+        item.statusText:SetText("|cff00FF00COLLECTÉ")
         item:SetBackdropColor(0.0, 0.2, 0.0, 0.8)
         item:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
     else
-        item.statusText:SetText("|cffFF0000✗ MANQUANT")
+        item.statusText:SetText("|cffFF0000MANQUANT")
         item:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
