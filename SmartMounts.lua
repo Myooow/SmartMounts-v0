@@ -1,7 +1,7 @@
 local addonName, addonTable = ...
 
 -- Récupération de la base de données
-local MountDatabase = addonTable.MountDatabase
+local MountDB = addonTable.MountDB
 
 -- Libraries
 local LDB = LibStub:GetLibrary("LibDataBroker-1.1", true)
@@ -34,8 +34,8 @@ if LDB then
             GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
             GameTooltip:AddLine("SmartMounts")
             GameTooltip:AddLine("|cffFFFFFFClique gauche:|r Ouvrir la fenêtre", 1, 1, 1)
-            local collected = MountDatabase.GetCollectedCount()
-            local total = MountDatabase.GetTotalCount()
+            local collected = MountDB.GetCollectedCount()
+            local total = MountDB.GetTotalCount()
             GameTooltip:AddLine(string.format("|cff00FF00%d|r / |cffFFFF00%d|r montures collectées", collected, total), 1, 1, 1)
             GameTooltip:Show()
         end,
@@ -90,10 +90,10 @@ function SmartMounts_ShowMainFrame()
     -- Statistiques
     local statsText = SmartMountsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     statsText:SetPoint("TOP", title, "BOTTOM", 0, -5)
-    local usable    = MountDatabase.GetKnownCount()
-    local journal    = MountDatabase.GetUsableCount()
-    local collected = MountDatabase.GetCollectedCount()
-    local total     = MountDatabase.GetTotalCount()
+    local usable    = MountDB.GetKnownCount()
+    local journal    = MountDB.GetUsableCount()
+    local collected = MountDB.GetCollectedCount()
+    local total     = MountDB.GetTotalCount()
     statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
                                 usable, journal, collected, total, (collected/total)*100))
     SmartMountsFrame.statsText = statsText
@@ -164,17 +164,17 @@ function SmartMounts_ShowMainFrame()
         UIDropDownMenu_AddButton(info)
         
         -- Filtres par extension
-        local expansions = MountDatabase.GetExpansions()
-        for _, expansion in ipairs(expansions) do
+        local categories = MountDB.GetCategories()
+        for _, category in ipairs(categories) do
             info = UIDropDownMenu_CreateInfo()
-            info.text = expansion
-            info.value = expansion
+            info.text = category
+            info.value = category
             info.func = function()
-                currentFilter = expansion
-                UIDropDownMenu_SetSelectedValue(filterDropdown, expansion)
+                currentFilter = category
+                UIDropDownMenu_SetSelectedValue(filterDropdown, category)
                 SmartMounts_UpdateMountList()
             end
-            info.checked = (currentFilter == expansion)
+            info.checked = (currentFilter == category)
             UIDropDownMenu_AddButton(info)
         end
     end
@@ -200,6 +200,57 @@ function SmartMounts_ShowMainFrame()
     SmartMounts_UpdateMountList()
 end
 
+-- Tooltip personnalisé avec modèle intégré
+local SmartMountTooltip = CreateFrame("GameTooltip", "SmartMountTooltip", UIParent, "GameTooltipTemplate")
+SmartMountTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
+SmartMountTooltip:SetSize(300, 100)
+
+SmartMountTooltip.Model = CreateFrame("PlayerModel", "SmartMountTooltipModel", SmartMountTooltip)
+SmartMountTooltip.Model:SetSize(150, 150)
+SmartMountTooltip.Model:SetPoint("TOPRIGHT", SmartMountTooltip, "TOPLEFT", -10, 0)
+SmartMountTooltip.Model:SetModelScale(0.8)
+SmartMountTooltip.Model:SetFacing(0.7)
+SmartMountTooltip.Model:Hide()
+
+function ShowSmartMountTooltip(mountData, anchorFrame)
+    if not mountData or not mountData.spellId then return end
+
+    local mountID = C_MountJournal.GetMountFromSpell(mountData.spellId)
+    if not mountID then return end
+
+    local name = mountData.name or "Monture inconnue"
+    local description = mountData.description or "Pas de description"
+
+    SmartMountTooltip:SetOwner(anchorFrame, "ANCHOR_RIGHT")
+    SmartMountTooltip:SetText(name)
+    SmartMountTooltip:AddLine(description, 1, 1, 1, true)
+
+    -- Source, localisation, taux de drop, etc.
+    if mountData.source then
+        SmartMountTooltip:AddLine("Source : " .. mountData.source, 0.8, 0.8, 0.8)
+    end
+    if mountData.dropChance then
+        SmartMountTooltip:AddLine("Taux de drop : " .. mountData.dropChance, 0.9, 0.6, 0.6)
+    end
+    if mountData.location then
+        SmartMountTooltip:AddLine("Lieu : " .. mountData.location, 0.6, 0.9, 0.6)
+    end
+    SmartMountTooltip:Show()
+
+    local creatureDisplayID = select(1, C_MountJournal.GetMountInfoExtraByID(mountID))
+    if creatureDisplayID then
+        SmartMountTooltip.Model:SetDisplayInfo(creatureDisplayID)
+        SmartMountTooltip.Model:Show()
+    else
+        SmartMountTooltip.Model:Hide()
+    end
+end
+
+function HideSmartMountTooltip()
+    SmartMountTooltip:Hide()
+    SmartMountTooltip.Model:Hide()
+end
+
 -------------------------------------------------
 -- Mise à jour de la liste des montures
 -------------------------------------------------
@@ -218,12 +269,12 @@ function SmartMounts_UpdateMountList()
 
     -- Filtrer les montures
     local filteredMounts = {}
-    for mountName, mountData in pairs(MountDatabase.mounts) do
+    for _, mountData in pairs(MountDB) do
         local shouldShow = true
         
         -- Filtre de recherche
         if searchText ~= "" then
-            if not string.find(mountName:lower(), searchText) and 
+            if not string.find(mountData.name:lower(), searchText) and 
                not string.find(mountData.location:lower(), searchText) and
                not string.find((mountData.boss or ""):lower(), searchText) then
                 shouldShow = false
@@ -233,11 +284,11 @@ function SmartMounts_UpdateMountList()
         -- Filtre par catégorie
         if shouldShow then
             if currentFilter == "collected" then
-                shouldShow = MountDatabase.HasMount(mountData.spellId)
+                shouldShow = MountDB.HasMount(mountData.spellId)
             elseif currentFilter == "missing" then
-                shouldShow = not MountDatabase.HasMount(mountData.spellId)
+                shouldShow = not MountDB.HasMount(mountData.spellId)
             elseif currentFilter ~= "all" then
-                shouldShow = (mountData.expansion == currentFilter)
+                shouldShow = (mountData.category == currentFilter)
             end
         end
         
@@ -246,13 +297,13 @@ function SmartMounts_UpdateMountList()
         end
     end
     
-    -- Trier par extension PUIS par nom
-    local order = MountDatabase.EXPANSION_ORDER or {}
+    -- -- Trier par extension PUIS par nom
+    local order = MountDB.CATEGORY_ORDER or {}
     table.sort(filteredMounts, function(a, b)
-        local oa = order[a.data.expansion] or math.huge
-        local ob = order[b.data.expansion] or math.huge
+        local oa = order[a.data.category] or math.huge
+        local ob = order[b.data.category] or math.huge
         if oa == ob then
-            return a.name < b.name          -- même extension → ordre alpha
+            return a.data.name < b.data.name          -- même extension → ordre alpha
         else
             return oa < ob                  -- sinon plus ancien d'abord
         end
@@ -266,8 +317,7 @@ function SmartMounts_UpdateMountList()
             item = SmartMounts_CreateMountItem(scrollChild)
             scrollChild.mountItems[i] = item
         end
-        
-        SmartMounts_SetupMountItem(item, mount.name, mount.data)
+        SmartMounts_SetupMountItem(item, mount.data.name, mount.data)
         item:SetPoint("TOPLEFT", 0, yOffset)
         item:Show()
         yOffset = yOffset - 80
@@ -277,10 +327,10 @@ function SmartMounts_UpdateMountList()
     
     -- Mettre à jour les stats
     if SmartMountsFrame.statsText then
-        local usable    = MountDatabase.GetKnownCount()
-        local journal    = MountDatabase.GetUsableCount()
-        local collected = MountDatabase.GetCollectedCount()
-        local total     = MountDatabase.GetTotalCount()
+        local usable    = MountDB.GetKnownCount()
+        local journal    = MountDB.GetUsableCount()
+        local collected = MountDB.GetCollectedCount()
+        local total     = MountDB.GetTotalCount()
         SmartMountsFrame.statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
                                     usable, journal, collected, total, (collected/total)*100))
     end
@@ -337,7 +387,7 @@ end
 -------------------------------------------------
 function SmartMounts_SetupMountItem(item, mountName, mountData)
     -- Icône
-    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDatabase
+    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDB
     if not iconTexture or iconTexture == "" then                        -- fallback si champ manquant
         iconTexture = select(3, GetSpellInfo(mountData.spellId))           -- ou celle du sort
                 or "Interface\\Icons\\INV_Misc_QuestionMark"            -- secours
@@ -345,12 +395,12 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     item.icon:SetTexture(iconTexture)
 
     -- Nom
-    local nameColor = MountDatabase.HasMount(mountData.spellId) and "|cff00FF00" or "|cffFFFFFF"
+    local nameColor = MountDB.HasMount(mountData.spellId) and "|cff00FF00" or "|cffFFFFFF"
     item.nameText:SetText(nameColor .. mountName)
     
     -- Informations
     local infoStr = string.format("|cffFFD700%s|r - |cff87CEEB%s|r", 
-        mountData.expansion or "Unknown", 
+        mountData.category or "Unknown", 
         mountData.location or "Unknown location")
     if mountData.boss then
         infoStr = infoStr .. string.format(" (%s)", mountData.boss)
@@ -368,7 +418,7 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     item.dropText:SetText(dropStr)
     
     -- Status
-    if MountDatabase.HasMount(mountData.spellId) then
+    if MountDB.HasMount(mountData.spellId) then
         item.statusText:SetText("|cff00FF00COLLECTÉ")
         item:SetBackdropColor(0.0, 0.2, 0.0, 0.8)
         item:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
@@ -380,22 +430,13 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     
     -- Tooltip au survol
     item:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink("item:" .. mountData.itemId)
-        if mountData.description then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(mountData.description, 1, 1, 1, true)
-        end
-        if mountData.coords and mountData.coords.mapId then
-            GameTooltip:AddLine(string.format("Coordonnées: %.1f, %.1f", 
-                mountData.coords.x or 0, mountData.coords.y or 0), 0.7, 0.7, 1)
-        end
-        GameTooltip:Show()
+        ShowSmartMountTooltip(mountData, self)
     end)
-    
+
     item:SetScript("OnLeave", function()
-        GameTooltip:Hide()
+        HideSmartMountTooltip()
     end)
+
 end
 
 -------------------------------------------------
@@ -419,8 +460,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DBIcon:Register("SmartMounts", dataobj, SmartMountsDB.minimap)
         end
         
-        local collected = MountDatabase.GetCollectedCount()
-        local total = MountDatabase.GetTotalCount()
+        local collected = MountDB.GetCollectedCount()
+        local total = MountDB.GetTotalCount()
         print(string.format("|cff00ff00[SmartMounts]|r Chargé avec %d/%d montures (%.1f%%)", 
             collected, total, (collected/total)*100))
     elseif event == "LEARNED_SPELL_IN_TAB" then
@@ -442,9 +483,9 @@ end
 
 SLASH_SMOUNTINFO1 = "/mountinfo"
 SlashCmdList["SMOUNTINFO"] = function()
-    if MountDatabase and MountDatabase.testdebug then
-        MountDatabase.testdebug()
+    if MountDB and MountDB.DebugPrintAllMountInfo then
+        MountDB.DebugPrintAllMountInfo()
     else
-        print("❌ MountDatabase.DebugPrintAllMountInfo introuvable.")
+        print("❌ MountDB.DebugPrintAllMountInfo introuvable.")
     end
 end

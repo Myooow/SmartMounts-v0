@@ -13,6 +13,7 @@
 
 # Base de données des montures
 MountDatabase.lua
+mountdb.lua
 
 # Interface principale
 SmartMounts.lua
