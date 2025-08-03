@@ -2344,9 +2344,9 @@ end
 -- Renvoie true si la monture est collectée sur le compte (aucun cache)
 MountDatabase.HasMount = function(spellId)
 
-    ----------------------------------------------------------------
-    -- 1) Retail / Wrath / Cata+ : API directe par spell-ID
-    ----------------------------------------------------------------
+    -- ----------------------------------------------------------------
+    -- -- 1) Retail / Wrath / Cata+ : API directe par spell-ID
+    -- ----------------------------------------------------------------
     if C_MountJournal and C_MountJournal.GetMountInfoBySpellID then
         local _, _, _, _, _, _, _, _, _, _, isCollected =
               C_MountJournal.GetMountInfoBySpellID(spellId)
@@ -2376,27 +2376,59 @@ MountDatabase.HasMount = function(spellId)
     return IsPlayerSpell and IsPlayerSpell(spellId)
 end
 
--- Permet de rafraîchir le cache quand on apprend une monture en jeu
-MountDatabase.RebuildCollectedCache = BuildCollectedCache
-
--- Obtenir le nombre de montures collectées
-MountDatabase.GetCollectedCount = function()
-    local count = 0
-    for name, data in pairs(MountDatabase.mounts) do
-        if MountDatabase.HasMount(data.spellId) then
-            count = count + 1
+-- 1. Montures connues (grimoire) → 16
+MountDatabase.GetKnownCount = function()
+    local n = 0
+    for _, id in ipairs(C_MountJournal.GetMountIDs()) do
+        local _, spellID, _, _, _, _, _, _, _, _, isCollected =
+              C_MountJournal.GetMountInfoByID(id)
+        if isCollected and IsPlayerSpell(spellID) then
+            n = n + 1
         end
     end
-    return count
+    return n
+end
+-----------------------------------------------------------------
+-- 1) Montures réellement visibles par CE personnage (utilisables)
+-----------------------------------------------------------------
+MountDatabase.GetUsableCount = function()
+    if not (C_MountJournal and C_MountJournal.GetMountIDs) then return 0 end
+    local n = 0
+    for _, id in ipairs(C_MountJournal.GetMountIDs()) do
+        -- name, spellID, icon, active, usable, sourceType,
+        -- isFavorite, isFactionSpecific, faction, hideOnChar, isCollected
+        local _, _, _, _, _, _, _, _, _, hideOnChar, isCollected =
+              C_MountJournal.GetMountInfoByID(id)
+        if isCollected and not hideOnChar then   -- **doit être visible + possédée**
+            n = n + 1
+        end
+    end
+    return n
 end
 
--- Obtenir le nombre total de montures
-MountDatabase.GetTotalCount = function()
-    local count = 0
-    for _ in pairs(MountDatabase.mounts) do
-        count = count + 1
+-----------------------------------------------------------------
+-- 2) Montures possédées sur le compte (collectées)
+--    ≈ nombre affiché par Blizzard en haut du journal
+-----------------------------------------------------------------
+MountDatabase.GetCollectedCount = function()
+    if not (C_MountJournal and C_MountJournal.GetMountIDs) then return 0 end
+    local n = 0
+    for _, id in ipairs(C_MountJournal.GetMountIDs()) do
+        local _, _, _, _, _, _, _, _, _, _, isCollected =
+              C_MountJournal.GetMountInfoByID(id)
+        if isCollected then                     -- **peu importe hideOnChar**
+            n = n + 1
+        end
     end
-    return count
+    return n
+end
+-----------------------------------------------------------------
+-- Nombre total d’entrées dans la base
+-----------------------------------------------------------------
+MountDatabase.GetTotalCount = function()
+    local c = 0
+    for _ in pairs(MountDatabase.mounts) do c = c + 1 end
+    return c
 end
 
 -- Export de la base de données

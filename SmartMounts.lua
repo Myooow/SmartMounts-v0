@@ -90,10 +90,12 @@ function SmartMounts_ShowMainFrame()
     -- Statistiques
     local statsText = SmartMountsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     statsText:SetPoint("TOP", title, "BOTTOM", 0, -5)
+    local usable    = MountDatabase.GetKnownCount()
+    local journal    = MountDatabase.GetUsableCount()
     local collected = MountDatabase.GetCollectedCount()
-    local total = MountDatabase.GetTotalCount()
-    statsText:SetText(string.format("|cff00FF00%d|r / |cffFFFF00%d|r montures collectées (%.1f%%)", 
-        collected, total, (collected/total)*100))
+    local total     = MountDatabase.GetTotalCount()
+    statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
+                                usable, journal, collected, total, (collected/total)*100))
     SmartMountsFrame.statsText = statsText
 
     -- Barre de recherche
@@ -275,10 +277,12 @@ function SmartMounts_UpdateMountList()
     
     -- Mettre à jour les stats
     if SmartMountsFrame.statsText then
+        local usable    = MountDatabase.GetKnownCount()
+        local journal    = MountDatabase.GetUsableCount()
         local collected = MountDatabase.GetCollectedCount()
-        local total = MountDatabase.GetTotalCount()
-        SmartMountsFrame.statsText:SetText(string.format("|cff00FF00%d|r / |cffFFFF00%d|r montures collectées (%.1f%%)", 
-            collected, total, (collected/total)*100))
+        local total     = MountDatabase.GetTotalCount()
+        SmartMountsFrame.statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
+                                    usable, journal, collected, total, (collected/total)*100))
     end
 end
 
