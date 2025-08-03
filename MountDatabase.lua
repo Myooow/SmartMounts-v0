@@ -270,6 +270,17 @@ MountDatabase.mounts = {
         dropChance="Vendor (1 g)", coords={ mapId = 85 },
         description="Brown-gray timber wolf.",
     },
+    ["Black Wolf"] = {
+        expansion   = "Classic",
+        name        = "Black Wolf",
+        spellId     = 64658,          -- sort (MoP-Classic)
+        itemId      = 46099,          -- ✅ Horn of the Black Wolf (MoP-Classic)
+        source      = "Vendor",
+        location    = "Orgrimmar",    -- Ogunaro Wolfrunner
+        dropChance  = "Vendor (1 g)",
+        coords      = { mapId = 85 }, -- Vallée de l’Honneur
+        description = "Vendu par Ogunaro Wolfrunner. Exalté Orgrimmar requis si tu n’es pas Orc."
+    },
     ["Red Wolf"] = {
         expansion="Classic", name="Red Wolf",
         spellId=16080, itemId=12330, source="Vendor",
