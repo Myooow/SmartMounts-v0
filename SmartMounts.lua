@@ -1,7 +1,7 @@
 local addonName, addonTable = ...
 
 -- Récupération de la base de données
-local MountDB = addonTable.MountDB
+local MountDatabase = addonTable.MountDatabase
 
 -- Libraries
 local LDB = LibStub:GetLibrary("LibDataBroker-1.1", true)
@@ -34,8 +34,8 @@ if LDB then
             GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT")
             GameTooltip:AddLine("SmartMounts")
             GameTooltip:AddLine("|cffFFFFFFClique gauche:|r Ouvrir la fenêtre", 1, 1, 1)
-            local collected = MountDB.GetCollectedCount()
-            local total = MountDB.GetTotalCount()
+            local collected = MountDatabase.GetCollectedCount()
+            local total = MountDatabase.GetTotalCount()
             GameTooltip:AddLine(string.format("|cff00FF00%d|r / |cffFFFF00%d|r montures collectées", collected, total), 1, 1, 1)
             GameTooltip:Show()
         end,
@@ -90,10 +90,10 @@ function SmartMounts_ShowMainFrame()
     -- Statistiques
     local statsText = SmartMountsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     statsText:SetPoint("TOP", title, "BOTTOM", 0, -5)
-    local usable    = MountDB.GetKnownCount()
-    local journal    = MountDB.GetUsableCount()
-    local collected = MountDB.GetCollectedCount()
-    local total     = MountDB.GetTotalCount()
+    local usable    = MountDatabase.GetKnownCount()
+    local journal    = MountDatabase.GetUsableCount()
+    local collected = MountDatabase.GetCollectedCount()
+    local total     = MountDatabase.GetTotalCount()
     statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
                                 usable, journal, collected, total, (collected/total)*100))
     SmartMountsFrame.statsText = statsText
@@ -163,8 +163,8 @@ function SmartMounts_ShowMainFrame()
         info.notCheckable = true
         UIDropDownMenu_AddButton(info)
         
-        -- Filtres par extension
-        local categories = MountDB.GetCategories()
+        -- Filtres par catégories (au lieu d'expansions)
+        local categories = MountDatabase.GetCategories()
         for _, category in ipairs(categories) do
             info = UIDropDownMenu_CreateInfo()
             info.text = category
@@ -200,57 +200,6 @@ function SmartMounts_ShowMainFrame()
     SmartMounts_UpdateMountList()
 end
 
--- Tooltip personnalisé avec modèle intégré
-local SmartMountTooltip = CreateFrame("GameTooltip", "SmartMountTooltip", UIParent, "GameTooltipTemplate")
-SmartMountTooltip:SetOwner(UIParent, "ANCHOR_CURSOR")
-SmartMountTooltip:SetSize(300, 100)
-
-SmartMountTooltip.Model = CreateFrame("PlayerModel", "SmartMountTooltipModel", SmartMountTooltip)
-SmartMountTooltip.Model:SetSize(150, 150)
-SmartMountTooltip.Model:SetPoint("TOPRIGHT", SmartMountTooltip, "TOPLEFT", -10, 0)
-SmartMountTooltip.Model:SetModelScale(0.8)
-SmartMountTooltip.Model:SetFacing(0.7)
-SmartMountTooltip.Model:Hide()
-
-function ShowSmartMountTooltip(mountData, anchorFrame)
-    if not mountData or not mountData.spellId then return end
-
-    local mountID = C_MountJournal.GetMountFromSpell(mountData.spellId)
-    if not mountID then return end
-
-    local name = mountData.name or "Monture inconnue"
-    local description = mountData.description or "Pas de description"
-
-    SmartMountTooltip:SetOwner(anchorFrame, "ANCHOR_RIGHT")
-    SmartMountTooltip:SetText(name)
-    SmartMountTooltip:AddLine(description, 1, 1, 1, true)
-
-    -- Source, localisation, taux de drop, etc.
-    if mountData.source then
-        SmartMountTooltip:AddLine("Source : " .. mountData.source, 0.8, 0.8, 0.8)
-    end
-    if mountData.dropChance then
-        SmartMountTooltip:AddLine("Taux de drop : " .. mountData.dropChance, 0.9, 0.6, 0.6)
-    end
-    if mountData.location then
-        SmartMountTooltip:AddLine("Lieu : " .. mountData.location, 0.6, 0.9, 0.6)
-    end
-    SmartMountTooltip:Show()
-
-    local creatureDisplayID = select(1, C_MountJournal.GetMountInfoExtraByID(mountID))
-    if creatureDisplayID then
-        SmartMountTooltip.Model:SetDisplayInfo(creatureDisplayID)
-        SmartMountTooltip.Model:Show()
-    else
-        SmartMountTooltip.Model:Hide()
-    end
-end
-
-function HideSmartMountTooltip()
-    SmartMountTooltip:Hide()
-    SmartMountTooltip.Model:Hide()
-end
-
 -------------------------------------------------
 -- Mise à jour de la liste des montures
 -------------------------------------------------
@@ -269,46 +218,43 @@ function SmartMounts_UpdateMountList()
 
     -- Filtrer les montures
     local filteredMounts = {}
-    for mountId, mountData in pairs(MountDB) do
-        -- Vérifier que c'est bien une entrée de monture (pas une fonction utilitaire)
-        if type(mountData) == "table" and mountData.name and mountData.spellId then
-            local shouldShow = true
-            
-            -- Filtre de recherche
-            if searchText ~= "" then
-                if not string.find(mountData.name:lower(), searchText) and 
-                   not string.find((mountData.location or ""):lower(), searchText) and
-                   not string.find((mountData.boss or ""):lower(), searchText) then
-                    shouldShow = false
-                end
+    for mountId, mountData in pairs(MountDatabase.mounts) do
+        local shouldShow = true
+        
+        -- Filtre de recherche
+        if searchText ~= "" then
+            if not string.find((mountData.name or ""):lower(), searchText) and 
+               not string.find((mountData.source or ""):lower(), searchText) and
+               not string.find((mountData.category or ""):lower(), searchText) then
+                shouldShow = false
             end
-            
-            -- Filtre par catégorie
-            if shouldShow then
-                if currentFilter == "collected" then
-                    shouldShow = MountDB.HasMount(mountData.spellId)
-                elseif currentFilter == "missing" then
-                    shouldShow = not MountDB.HasMount(mountData.spellId)
-                elseif currentFilter ~= "all" then
-                    shouldShow = (mountData.category == currentFilter)
-                end
+        end
+        
+        -- Filtre par catégorie
+        if shouldShow then
+            if currentFilter == "collected" then
+                shouldShow = MountDatabase.HasMount(mountData.spellId)
+            elseif currentFilter == "missing" then
+                shouldShow = not MountDatabase.HasMount(mountData.spellId)
+            elseif currentFilter ~= "all" then
+                shouldShow = (mountData.category == currentFilter)
             end
-            
-            if shouldShow then
-                table.insert(filteredMounts, {name = mountData.name, data = mountData})
-            end
+        end
+        
+        if shouldShow then
+            table.insert(filteredMounts, {id = mountId, name = mountData.name, data = mountData})
         end
     end
     
-    -- Trier par extension PUIS par nom
-    local order = MountDB.CATEGORY_ORDER or {}
+    -- Trier par catégorie PUIS par nom
+    local order = MountDatabase.CATEGORY_ORDER or {}
     table.sort(filteredMounts, function(a, b)
         local oa = order[a.data.category] or math.huge
         local ob = order[b.data.category] or math.huge
         if oa == ob then
-            return a.data.name < b.data.name          -- même extension → ordre alpha
+            return a.name < b.name          -- même catégorie → ordre alpha
         else
-            return oa < ob                            -- sinon plus ancien d'abord
+            return oa < ob                  -- sinon selon l'ordre défini
         end
     end)
     
@@ -320,7 +266,8 @@ function SmartMounts_UpdateMountList()
             item = SmartMounts_CreateMountItem(scrollChild)
             scrollChild.mountItems[i] = item
         end
-        SmartMounts_SetupMountItem(item, mount.data.name, mount.data)
+        
+        SmartMounts_SetupMountItem(item, mount.name, mount.data)
         item:SetPoint("TOPLEFT", 0, yOffset)
         item:Show()
         yOffset = yOffset - 80
@@ -330,12 +277,12 @@ function SmartMounts_UpdateMountList()
     
     -- Mettre à jour les stats
     if SmartMountsFrame.statsText then
-        local usable    = MountDB.GetKnownCount()
-        local journal    = MountDB.GetUsableCount()
-        local collected = MountDB.GetCollectedCount()
-        local total     = MountDB.GetTotalCount()
+        local usable    = MountDatabase.GetKnownCount()
+        local journal    = MountDatabase.GetUsableCount()
+        local collected = MountDatabase.GetCollectedCount()
+        local total     = MountDatabase.GetTotalCount()
         SmartMountsFrame.statsText:SetText(string.format("|cffffffff%d|r utilisables |cffffffff%d|r dans le journal  |cff00ff00%d|r collectées  |cff999999%d|r possibles",
-                                    usable, journal, collected, total))
+                                    usable, journal, collected, total, (collected/total)*100))
     end
 end
 
@@ -390,7 +337,7 @@ end
 -------------------------------------------------
 function SmartMounts_SetupMountItem(item, mountName, mountData)
     -- Icône
-    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDB
+    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDatabase
     if not iconTexture or iconTexture == "" then                        -- fallback si champ manquant
         iconTexture = select(3, GetSpellInfo(mountData.spellId))           -- ou celle du sort
                 or "Interface\\Icons\\INV_Misc_QuestionMark"            -- secours
@@ -398,13 +345,13 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     item.icon:SetTexture(iconTexture)
 
     -- Nom
-    local nameColor = MountDB.HasMount(mountData.spellId) and "|cff00FF00" or "|cffFFFFFF"
+    local nameColor = MountDatabase.HasMount(mountData.spellId) and "|cff00FF00" or "|cffFFFFFF"
     item.nameText:SetText(nameColor .. mountName)
     
     -- Informations
     local infoStr = string.format("|cffFFD700%s|r - |cff87CEEB%s|r", 
         mountData.category or "Unknown", 
-        mountData.location or "Unknown location")
+        mountData.source or "Unknown location")
     if mountData.boss then
         infoStr = infoStr .. string.format(" (%s)", mountData.boss)
     end
@@ -421,7 +368,7 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
     item.dropText:SetText(dropStr)
     
     -- Status
-    if MountDB.HasMount(mountData.spellId) then
+    if MountDatabase.HasMount(mountData.spellId) then
         item.statusText:SetText("|cff00FF00COLLECTÉ")
         item:SetBackdropColor(0.0, 0.2, 0.0, 0.8)
         item:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
@@ -431,15 +378,86 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
     
-    -- Tooltip au survol
+    -- Tooltip 3D au survol de l'icône
+    item.icon:EnableMouse(true)
+    item.icon:SetScript("OnEnter", function(self)
+        -- Tooltip avec modèle 3D
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        
+        -- Ajouter le modèle 3D si disponible
+        if mountData.creatureDisplayId then
+            GameTooltip:AddLine(" ") -- Ligne vide pour l'espacement
+            GameTooltip:Show()
+            
+            -- Créer le modèle 3D
+            local model = CreateFrame("PlayerModel", nil, GameTooltip)
+            model:SetSize(300, 300)
+            model:SetPoint("TOP", GameTooltip, "BOTTOM", 0, -5)
+            model:SetDisplayInfo(mountData.creatureDisplayId)
+            model:SetCamera(1)
+            model:SetRotation(0.78)
+            
+            -- Frame de fond pour le modèle
+            local modelBg = CreateFrame("Frame", nil, GameTooltip, "BackdropTemplate")
+            modelBg:SetSize(320, 320)
+            modelBg:SetPoint("CENTER", model, "CENTER", 0, 0)
+            modelBg:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                tile = false,
+                edgeSize = 8,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 }
+            })
+            modelBg:SetBackdropColor(0, 0, 0, 0.8)
+            modelBg:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+            modelBg:SetFrameLevel(model:GetFrameLevel() - 1)
+
+            model:EnableMouseWheel(true)
+            model:SetScript("OnMouseWheel", function(self, delta)
+                local currentRotation = self.currentRotation or 0
+                currentRotation = currentRotation + (delta * 0.2)  -- Ajuster la sensibilité
+                if currentRotation > 6.28 then currentRotation = 0 end
+                if currentRotation < 0 then currentRotation = 6.28 end
+                self:SetRotation(currentRotation)
+                self.currentRotation = currentRotation
+            end)
+
+            model:Show()
+            modelBg:Show()
+            
+            -- Stocker les références pour le nettoyage
+            GameTooltip.mountModel = model
+            GameTooltip.mountModelBg = modelBg
+        else
+            GameTooltip:Show()
+        end
+    end)
+    
+    item.icon:SetScript("OnLeave", function()
+        -- Nettoyer le modèle 3D
+        if GameTooltip.mountModel then
+            GameTooltip.mountModel:Hide()
+            GameTooltip.mountModel = nil
+        end
+        if GameTooltip.mountModelBg then
+            GameTooltip.mountModelBg:Hide()
+            GameTooltip.mountModelBg = nil
+        end
+        GameTooltip:Hide()
+    end)
+    
+    -- Tooltip standard pour le reste de l'item
     item:SetScript("OnEnter", function(self)
-        ShowSmartMountTooltip(mountData, self)
+        if self == item.icon then return end -- Éviter le conflit avec l'icône
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetHyperlink("spell:" .. mountData.spellId)
+        GameTooltip:Show()
     end)
-
-    item:SetScript("OnLeave", function()
-        HideSmartMountTooltip()
+    
+    item:SetScript("OnLeave", function(self)
+        if self == item.icon then return end -- L'icône gère son propre tooltip
+        GameTooltip:Hide()
     end)
-
 end
 
 -------------------------------------------------
@@ -463,8 +481,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DBIcon:Register("SmartMounts", dataobj, SmartMountsDB.minimap)
         end
         
-        local collected = MountDB.GetCollectedCount()
-        local total = MountDB.GetTotalCount()
+        local collected = MountDatabase.GetCollectedCount()
+        local total = MountDatabase.GetTotalCount()
         print(string.format("|cff00ff00[SmartMounts]|r Chargé avec %d/%d montures (%.1f%%)", 
             collected, total, (collected/total)*100))
     elseif event == "LEARNED_SPELL_IN_TAB" then
@@ -486,9 +504,9 @@ end
 
 SLASH_SMOUNTINFO1 = "/mountinfo"
 SlashCmdList["SMOUNTINFO"] = function()
-    if MountDB and MountDB.DebugPrintAllMountInfo then
-        MountDB.DebugPrintAllMountInfo()
+    if MountDatabase and MountDatabase.testdebug then
+        MountDatabase.testdebug()
     else
-        print("❌ MountDB.DebugPrintAllMountInfo introuvable.")
+        print("❌ MountDatabase.DebugPrintAllMountInfo introuvable.")
     end
 end
