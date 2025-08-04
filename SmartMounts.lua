@@ -46,6 +46,26 @@ if LDB then
 end
 
 -------------------------------------------------
+-- Mise à jour du modèle 3D
+-------------------------------------------------
+function SmartMounts_UpdateModel(mountName, mountData)
+    if not SmartMountsFrame or not SmartMountsFrame.model then
+        return
+    end
+
+    if mountData.creatureDisplayId then
+        SmartMountsFrame.modelMountName:SetText(mountName)
+        SmartMountsFrame.model:SetDisplayInfo(mountData.creatureDisplayId)
+        SmartMountsFrame.model:SetCamera(1)
+        SmartMountsFrame.model:SetRotation(0.78)
+        SmartMountsFrame.model.currentRotation = 0.78
+        SmartMountsFrame.modelSection:Show()
+    else
+        SmartMountsFrame.modelSection:Hide()
+    end
+end
+
+-------------------------------------------------
 -- Création de la fenêtre principale
 -------------------------------------------------
 function SmartMounts_ShowMainFrame()
@@ -55,16 +75,20 @@ function SmartMounts_ShowMainFrame()
         return
     end
 
-    -- Création de la frame principale
+    -- Création de la frame principale (élargie pour inclure le modèle)
     SmartMountsFrame = CreateFrame("Frame", "SmartMountsFrame", UIParent, "BackdropTemplate")
-    SmartMountsFrame:SetSize(450, 600)
+    SmartMountsFrame:SetSize(950, 700) -- Largeur augmentée pour inclure le modèle
     SmartMountsFrame:SetPoint("CENTER")
     SmartMountsFrame:SetMovable(true)
     SmartMountsFrame:EnableMouse(true)
     SmartMountsFrame:SetClampedToScreen(true)
     SmartMountsFrame:RegisterForDrag("LeftButton")
-    SmartMountsFrame:SetScript("OnDragStart", SmartMountsFrame.StartMoving)
-    SmartMountsFrame:SetScript("OnDragStop", SmartMountsFrame.StopMovingOrSizing)
+    SmartMountsFrame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    SmartMountsFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+    end)
 
     SmartMountsFrame:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -98,10 +122,86 @@ function SmartMounts_ShowMainFrame()
                                 usable, journal, collected, total, (collected/total)*100))
     SmartMountsFrame.statsText = statsText
 
-    -- Barre de recherche
+    -- Section pour le modèle 3D (côté gauche)
+    local modelSection = CreateFrame("Frame", nil, SmartMountsFrame, "BackdropTemplate")
+    modelSection:SetSize(380, 620)
+    modelSection:SetPoint("TOPLEFT", 20, -70)
+    modelSection:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    modelSection:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
+    modelSection:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    SmartMountsFrame.modelSection = modelSection
+
+    -- Titre de la section modèle
+    local modelTitle = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    modelTitle:SetPoint("TOP", 0, -15)
+    modelTitle:SetText("Aperçu Monture")
+    modelTitle:SetTextColor(1, 0.8, 0)
+
+    -- Nom de la monture affichée
+    local modelMountName = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    modelMountName:SetPoint("TOP", modelTitle, "BOTTOM", 0, -10)
+    modelMountName:SetText("Survolez une monture pour l'afficher")
+    modelMountName:SetTextColor(0.7, 0.7, 0.7)
+    SmartMountsFrame.modelMountName = modelMountName
+
+    -- Modèle 3D
+    local model = CreateFrame("PlayerModel", nil, modelSection)
+    model:SetSize(340, 450)
+    model:SetPoint("TOP", modelMountName, "BOTTOM", 0, -20)
+    model:EnableMouseWheel(true)
+    model:SetScript("OnMouseWheel", function(self, delta)
+        local currentRotation = self.currentRotation or 0
+        currentRotation = currentRotation + (delta * 0.2)
+        if currentRotation > 6.28 then currentRotation = 0 end
+        if currentRotation < 0 then currentRotation = 6.28 end
+        self:SetRotation(currentRotation)
+        self.currentRotation = currentRotation
+    end)
+    SmartMountsFrame.model = model
+
+    -- Instructions
+    local instructions = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    instructions:SetPoint("BOTTOM", 0, 80)
+    instructions:SetText("Molette de la souris pour faire tourner")
+    instructions:SetTextColor(0.7, 0.7, 0.7)
+
+    -- Bouton GO (pour l'instant juste debug)
+    local goButton = CreateFrame("Button", nil, modelSection, "GameMenuButtonTemplate")
+    goButton:SetSize(100, 30)
+    goButton:SetPoint("BOTTOM", 0, 10)
+    goButton:SetText("GO!")
+    goButton:SetScript("OnClick", function(self)
+        if SmartMountsFrame.currentMountData then
+            local mountData = SmartMountsFrame.currentMountData
+            local mountName = SmartMountsFrame.currentMountName
+            print("=== Informations de la monture ===")
+            print("Nom: " .. (mountName or "N/A"))
+            print("ID Sort: " .. (mountData.spellId or "N/A"))
+            print("Catégorie: " .. (mountData.category or "N/A"))
+            print("Source: " .. (mountData.source or "N/A"))
+            print("Boss: " .. (mountData.boss or "N/A"))
+            print("Taux de drop: " .. (mountData.dropChance or "N/A"))
+            print("Difficulté: " .. (mountData.difficulty or "N/A"))
+            print("Collecté: " .. (MountDatabase.HasMount(mountData.spellId) and "OUI" or "NON"))
+        else
+            print("Aucune monture sélectionnée")
+        end
+    end)
+    SmartMountsFrame.goButton = goButton
+
+    -- Cacher la section modèle par défaut
+    modelSection:Hide()
+
+    -- Barre de recherche (côté droit)
     local searchBox = CreateFrame("EditBox", nil, SmartMountsFrame, "InputBoxTemplate")
     searchBox:SetSize(200, 20)
-    searchBox:SetPoint("TOPLEFT", 20, -70)
+    searchBox:SetPoint("TOPLEFT", 420, -70)
     searchBox:SetAutoFocus(false)
     searchBox:SetScript("OnTextChanged", function(self)
         searchText = self:GetText():lower()
@@ -184,14 +284,14 @@ function SmartMounts_ShowMainFrame()
     UIDropDownMenu_SetSelectedValue(filterDropdown, "all")
     UIDropDownMenu_SetText(filterDropdown, "Toutes les montures")
 
-    -- Scroll Frame pour la liste
+    -- Scroll Frame pour la liste (côté droit)
     local scrollFrame = CreateFrame("ScrollFrame", "SmartMountsScrollFrame", SmartMountsFrame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 20, -110)
+    scrollFrame:SetPoint("TOPLEFT", 420, -110)
     scrollFrame:SetPoint("BOTTOMRIGHT", -40, 20)
     
     local scrollChild = CreateFrame("Frame")
     scrollFrame:SetScrollChild(scrollChild)
-    scrollChild:SetWidth(380)
+    scrollChild:SetWidth(480)
     scrollChild:SetHeight(1)
     SmartMountsFrame.scrollChild = scrollChild
     SmartMountsFrame.scrollFrame = scrollFrame
@@ -291,7 +391,7 @@ end
 -------------------------------------------------
 function SmartMounts_CreateMountItem(parent)
     local item = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    item:SetSize(380, 75)
+    item:SetSize(480, 75)
     item:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -337,10 +437,10 @@ end
 -------------------------------------------------
 function SmartMounts_SetupMountItem(item, mountName, mountData)
     -- Icône
-    local iconTexture = mountData.icon                                  -- chemin fourni dans MountDatabase
-    if not iconTexture or iconTexture == "" then                        -- fallback si champ manquant
-        iconTexture = select(3, GetSpellInfo(mountData.spellId))           -- ou celle du sort
-                or "Interface\\Icons\\INV_Misc_QuestionMark"            -- secours
+    local iconTexture = mountData.icon
+    if not iconTexture or iconTexture == "" then
+        iconTexture = select(3, GetSpellInfo(mountData.spellId))
+                or "Interface\\Icons\\INV_Misc_QuestionMark"
     end
     item.icon:SetTexture(iconTexture)
 
@@ -378,84 +478,22 @@ function SmartMounts_SetupMountItem(item, mountName, mountData)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
     
-    -- Tooltip 3D au survol de l'icône
-    item.icon:EnableMouse(true)
-    item.icon:SetScript("OnEnter", function(self)
-        -- Tooltip avec modèle 3D
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        
-        -- Ajouter le modèle 3D si disponible
-        if mountData.creatureDisplayId then
-            GameTooltip:AddLine(" ") -- Ligne vide pour l'espacement
-            GameTooltip:Show()
-            
-            -- Créer le modèle 3D
-            local model = CreateFrame("PlayerModel", nil, GameTooltip)
-            model:SetSize(300, 300)
-            model:SetPoint("TOP", GameTooltip, "BOTTOM", 0, -5)
-            model:SetDisplayInfo(mountData.creatureDisplayId)
-            model:SetCamera(1)
-            model:SetRotation(0.78)
-            
-            -- Frame de fond pour le modèle
-            local modelBg = CreateFrame("Frame", nil, GameTooltip, "BackdropTemplate")
-            modelBg:SetSize(320, 320)
-            modelBg:SetPoint("CENTER", model, "CENTER", 0, 0)
-            modelBg:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8x8",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                tile = false,
-                edgeSize = 8,
-                insets = { left = 2, right = 2, top = 2, bottom = 2 }
-            })
-            modelBg:SetBackdropColor(0, 0, 0, 0.8)
-            modelBg:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
-            modelBg:SetFrameLevel(model:GetFrameLevel() - 1)
-
-            model:EnableMouseWheel(true)
-            model:SetScript("OnMouseWheel", function(self, delta)
-                local currentRotation = self.currentRotation or 0
-                currentRotation = currentRotation + (delta * 0.2)  -- Ajuster la sensibilité
-                if currentRotation > 6.28 then currentRotation = 0 end
-                if currentRotation < 0 then currentRotation = 6.28 end
-                self:SetRotation(currentRotation)
-                self.currentRotation = currentRotation
-            end)
-
-            model:Show()
-            modelBg:Show()
-            
-            -- Stocker les références pour le nettoyage
-            GameTooltip.mountModel = model
-            GameTooltip.mountModelBg = modelBg
-        else
-            GameTooltip:Show()
-        end
-    end)
-    
-    item.icon:SetScript("OnLeave", function()
-        -- Nettoyer le modèle 3D
-        if GameTooltip.mountModel then
-            GameTooltip.mountModel:Hide()
-            GameTooltip.mountModel = nil
-        end
-        if GameTooltip.mountModelBg then
-            GameTooltip.mountModelBg:Hide()
-            GameTooltip.mountModelBg = nil
-        end
-        GameTooltip:Hide()
-    end)
-    
-    -- Tooltip standard pour le reste de l'item
+    -- Événements de survol pour afficher le modèle 3D
+    item:EnableMouse(true)
     item:SetScript("OnEnter", function(self)
-        if self == item.icon then return end -- Éviter le conflit avec l'icône
+        -- Stocker les données de la monture courante pour le bouton GO
+        SmartMountsFrame.currentMountData = mountData
+        SmartMountsFrame.currentMountName = mountName
+        
+        SmartMounts_UpdateModel(mountName, mountData)
+        
+        -- Tooltip simple
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink("spell:" .. mountData.spellId)
         GameTooltip:Show()
     end)
     
     item:SetScript("OnLeave", function(self)
-        if self == item.icon then return end -- L'icône gère son propre tooltip
         GameTooltip:Hide()
     end)
 end
