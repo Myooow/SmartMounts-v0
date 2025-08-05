@@ -11,8 +11,25 @@
 # Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua  
 # Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
-# Base de données des montures
-MountDatabase.lua
+## Bases de données par catégorie
+Database\Achievements.lua
+Database\Racial.lua
+Database\Professions.lua
+Database\Other.lua
 
-# Interface principale
+## Bases de données par expansion
+Database\Classic.lua
+Database\TheBurningCrusade.lua
+Database\WrathOfTheLichKing.lua
+Database\Cataclysm.lua
+Database\MistsOfPandaria.lua
+
+## Core système
+Core.lua
+
+## UI Components  
+UI\ModelViewer.lua
+UI\MainFrame.lua
+
+## Interface
 SmartMounts.lua
