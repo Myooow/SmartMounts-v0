@@ -118,35 +118,25 @@ function ModelViewer:CreateActionButtons(parent, detailsFrame)
 
     -- Bouton d'information détaillée
     local infoButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
-    infoButton:SetSize(100, 30)
-    infoButton:SetPoint("LEFT", 10, 0)
-    infoButton:SetText("Détails")
+    infoButton:SetSize(150, 30)
+    infoButton:SetPoint("LEFT", 20, 0)
+    infoButton:SetText("Afficher détails")
     infoButton:SetScript("OnClick", function(self)
         ModelViewer:ShowMountDetails()
     end)
 
-    -- Bouton pour ouvrir le journal des montures
-    local journalButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
-    journalButton:SetSize(100, 30)
-    journalButton:SetPoint("CENTER", 0, 0)
-    journalButton:SetText("Journal")
-    journalButton:SetScript("OnClick", function(self)
-        ModelViewer:OpenMountJournal()
-    end)
-
-    -- Bouton pour copier le lien
-    local linkButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
-    linkButton:SetSize(100, 30)
-    linkButton:SetPoint("RIGHT", -10, 0)
-    linkButton:SetText("Lien")
-    linkButton:SetScript("OnClick", function(self)
-        ModelViewer:CopyMountLink()
+    -- Bouton pour invoquer la monture (si collectée)
+    local summonButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
+    summonButton:SetSize(150, 30)
+    summonButton:SetPoint("RIGHT", -20, 0)
+    summonButton:SetText("Invoquer")
+    summonButton:SetScript("OnClick", function(self)
+        ModelViewer:SummonMount()
     end)
 
     -- Stocker les références
     buttonContainer.infoButton = infoButton
-    buttonContainer.journalButton = journalButton
-    buttonContainer.linkButton = linkButton
+    buttonContainer.summonButton = summonButton
     
     parent.actionButtons = buttonContainer
 end
@@ -160,11 +150,23 @@ function ModelViewer:UpdateModel(mountName, mountData)
     currentMountData = mountData
     currentMountName = mountName
 
-    -- Mettre à jour le nom
+    -- Mettre à jour le nom avec icône de faction si nécessaire
     if modelMountName then
         local isCollected = Core and Core.HasMount(mountData.spellId)
-        local nameColor = isCollected and "|cff00FF00" or "|cffFFFFFF"
-        modelMountName:SetText(nameColor .. mountName)
+        local nameColor = isCollected and "|cff4CAF50" or "|cffFFFFFF"  -- Même vert sobre
+        
+        local displayName = nameColor .. mountName
+        
+        -- Ajouter l'icône de faction si nécessaire
+        if mountData.isFactionSpecific and mountData.faction then
+            if mountData.faction == "Alliance" then
+                displayName = displayName .. " |TInterface\\PVPFrame\\PVP-Currency-Alliance:16:16|t"
+            else
+                displayName = displayName .. " |TInterface\\PVPFrame\\PVP-Currency-Horde:16:16|t"
+            end
+        end
+        
+        modelMountName:SetText(displayName)
     end
 
     -- Afficher le modèle 3D si possible
@@ -182,6 +184,9 @@ function ModelViewer:UpdateModel(mountName, mountData)
 
     -- Mettre à jour les détails
     self:UpdateDetails(mountData)
+    
+    -- Mettre à jour les boutons
+    self:UpdateButtons(mountData)
 end
 
 function ModelViewer:UpdateDetails(mountData)
@@ -221,20 +226,33 @@ function ModelViewer:UpdateDetails(mountData)
                 table.insert(infoLines, "|cffFFD700Difficulté:|r " .. mountData.difficulty)
             end
             
-            -- Faction si applicable
-            if mountData.factionText and mountData.factionText ~= "" then
-                local factionColor = mountData.faction == "Alliance" and "|cff0080ff" or "|cffff0000"
-                table.insert(infoLines, "|cffFFD700Faction:|r " .. factionColor .. mountData.factionText)
-            end
-            
             -- Status de collection
             local isCollected = Core and Core.HasMount(mountData.spellId)
-            local statusColor = isCollected and "|cff00FF00" or "|cffFF0000"
+            local statusColor = isCollected and "|cff4CAF50" or "|cffFF5722"  -- Vert sobre et orange
             local statusText = isCollected and "COLLECTÉ" or "MANQUANT"
             table.insert(infoLines, "|cffFFD700Statut:|r " .. statusColor .. statusText)
             
             child.infoText:SetText(table.concat(infoLines, "\n"))
             break
+        end
+    end
+end
+
+function ModelViewer:UpdateButtons(mountData)
+    if not modelSection or not modelSection.actionButtons then
+        return
+    end
+    
+    local isCollected = Core and Core.HasMount(mountData.spellId)
+    local summonButton = modelSection.actionButtons.summonButton
+    
+    if summonButton then
+        if isCollected then
+            summonButton:Enable()
+            summonButton:SetText("Invoquer")
+        else
+            summonButton:Disable()
+            summonButton:SetText("Non obtenue")
         end
     end
 end
@@ -309,64 +327,25 @@ function ModelViewer:OpenMountJournal()
     end
 end
 
-function ModelViewer:CopyMountLink()
+function ModelViewer:SummonMount()
     if not currentMountData or not currentMountData.spellId then
         print("|cffff8800[SmartMounts]|r Aucune monture sélectionnée")
         return
     end
-
-    -- Créer le lien de sort
-    local spellLink = GetSpellLink(currentMountData.spellId)
-    if spellLink then
-        -- Dans WoW, on ne peut pas directement copier dans le presse-papiers
-        -- On va afficher le lien pour que le joueur puisse le copier manuellement
-        print("|cff00ff00[SmartMounts]|r Lien de la monture: " .. spellLink)
-        
-        -- Créer une frame temporaire avec le texte sélectionnable
-        local copyFrame = CreateFrame("Frame", "SmartMountsCopyFrame", UIParent, "BackdropTemplate")
-        copyFrame:SetSize(400, 100)
-        copyFrame:SetPoint("CENTER")
-        copyFrame:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-            tile = true,
-            tileSize = 16,
-            edgeSize = 16,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 }
-        })
-        copyFrame:SetBackdropColor(0, 0, 0, 0.9)
-        copyFrame:SetBackdropBorderColor(0.8, 0.8, 0.8, 1)
-
-        local title = copyFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        title:SetPoint("TOP", 0, -10)
-        title:SetText("Lien de la monture (Ctrl+C pour copier)")
-        title:SetTextColor(1, 0.8, 0)
-
-        local editBox = CreateFrame("EditBox", nil, copyFrame, "InputBoxTemplate")
-        editBox:SetSize(380, 20)
-        editBox:SetPoint("CENTER", 0, -10)
-        editBox:SetText(spellLink)
-        editBox:SetAutoFocus(true)
-        editBox:HighlightText()
-
-        local closeButton = CreateFrame("Button", nil, copyFrame, "GameMenuButtonTemplate")
-        closeButton:SetSize(80, 25)
-        closeButton:SetPoint("BOTTOM", 0, -35)
-        closeButton:SetText("Fermer")
-        closeButton:SetScript("OnClick", function()
-            copyFrame:Hide()
-            copyFrame = nil
-        end)
-
-        -- Auto-fermeture après 10 secondes
-        C_Timer.After(10, function()
-            if copyFrame then
-                copyFrame:Hide()
-                copyFrame = nil
-            end
-        end)
+    
+    local isCollected = Core and Core.HasMount(currentMountData.spellId)
+    if not isCollected then
+        print("|cffff0000[SmartMounts]|r Vous ne possédez pas cette monture")
+        return
+    end
+    
+    -- Invoquer la monture
+    local spellName = GetSpellInfo(currentMountData.spellId)
+    if spellName then
+        CastSpellByName(spellName)
+        print("|cff00ff00[SmartMounts]|r Invocation de " .. (currentMountName or spellName))
     else
-        print("|cffff0000[SmartMounts]|r Impossible de créer le lien pour cette monture")
+        print("|cffff0000[SmartMounts]|r Impossible d'invoquer cette monture")
     end
 end
 
