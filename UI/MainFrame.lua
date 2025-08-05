@@ -12,11 +12,37 @@ local MainFrame = {}
 addonTable.UI.MainFrame = MainFrame
 
 -------------------------------------------------
+-- Gestion de la sélection
+-------------------------------------------------
+function MainFrame:ClearSelection()
+    if selectedItem then
+        -- Restaurer l'apparence normale
+        local isCollected = Core.HasMount(selectedItem.mountData.spellId)
+        if isCollected then
+            selectedItem:SetBackdropColor(0.0, 0.15, 0.0, 0.8)
+            selectedItem:SetBackdropBorderColor(0.0, 0.5, 0.0, 1)
+        else
+            selectedItem:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+            selectedItem:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+        end
+        selectedItem = nil
+    end
+end
+
+function MainFrame:SelectItem(item, mountName, mountData)
+    selectedItem = item
+    -- Couleur de sélection
+    item:SetBackdropColor(0.2, 0.3, 0.5, 0.9)
+    item:SetBackdropBorderColor(0.4, 0.6, 1.0, 1)
+end
+
+-------------------------------------------------
 -- Variables locales
 -------------------------------------------------
 local frame
 local currentFilter = "all"
 local searchText = ""
+local selectedItem = nil -- Item actuellement sélectionné
 
 -------------------------------------------------
 -- Interface de gestion
@@ -383,8 +409,8 @@ function MainFrame:UpdateStats()
     local percentage = total > 0 and math.floor((collected / total) * 100) or 0
     
     frame.statsText:SetText(string.format(
-        "|cffffffff%d|r utilisables |cffffffff%d|r sorts connus |cff00ff00%d|r collectées |cff999999%d|r possibles |cffaaaaaa(%d%%)|r",
-        usable, known, collected, total, percentage
+        "|cffffffff%d|r utilisables |cffffffff%d|r connues |cff00ff00%d|r collectées |cff999999%d|r possibles |cffaaaaaa(%d%%)|r",
+        known, usable, collected, total, percentage
     ))
 end
 
@@ -438,7 +464,7 @@ end
 -- Configuration d'un élément de monture
 -------------------------------------------------
 function MainFrame:SetupMountItem(item, mountName, mountData)
-    -- Icône
+    -- Icône principale
     local iconTexture = mountData.icon
     if not iconTexture or iconTexture == "" then
         iconTexture = select(3, GetSpellInfo(mountData.spellId))
@@ -446,19 +472,36 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
     end
     item.icon:SetTexture(iconTexture)
 
-    -- Nom avec couleur selon le statut
+    -- Icône de faction en arrière-plan si nécessaire
+    if mountData.isFactionSpecific and mountData.faction then
+        if not item.factionIcon then
+            item.factionIcon = item:CreateTexture(nil, "BACKGROUND")
+            item.factionIcon:SetSize(20, 20)
+            item.factionIcon:SetPoint("TOPRIGHT", item.icon, "TOPRIGHT", -2, -2)
+            item.factionIcon:SetAlpha(0.7)
+        end
+        
+        if mountData.faction == "Alliance" then
+            item.factionIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Alliance")
+        else
+            item.factionIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Horde")
+        end
+        item.factionIcon:Show()
+    else
+        if item.factionIcon then
+            item.factionIcon:Hide()
+        end
+    end
+
+    -- Nom avec couleur selon le statut (vert plus sobre)
     local isCollected = Core.HasMount(mountData.spellId)
-    local nameColor = isCollected and "|cff00FF00" or "|cffFFFFFF"
+    local nameColor = isCollected and "|cff4CAF50" or "|cffFFFFFF"  -- Vert plus sobre
     item.nameText:SetText(nameColor .. mountName)
     
-    -- Informations de base
+    -- Informations de base (sans afficher la faction en texte)
     local infoStr = string.format("|cffFFD700%s|r", mountData.category or "Unknown")
     if mountData.sourceTypeLocalized then
         infoStr = infoStr .. string.format(" - |cff87CEEB%s|r", mountData.sourceTypeLocalized)
-    end
-    if mountData.factionText and mountData.factionText ~= "" then
-        local factionColor = mountData.faction == "Alliance" and "|cff0080ff" or "|cffff0000"
-        infoStr = infoStr .. string.format(" - %s%s|r", factionColor, mountData.factionText)
     end
     item.infoText:SetText(infoStr)
     
@@ -480,24 +523,19 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
     
     -- Status et apparence
     if isCollected then
-        item.statusText:SetText("|cff00FF00COLLECTÉ")
-        item:SetBackdropColor(0.0, 0.2, 0.0, 0.8)
-        item:SetBackdropBorderColor(0.0, 0.8, 0.0, 1)
+        item.statusText:SetText("|cff4CAF50COLLECTÉ")  -- Vert plus sobre
+        item:SetBackdropColor(0.0, 0.15, 0.0, 0.8)     -- Vert de fond plus sobre
+        item:SetBackdropBorderColor(0.0, 0.5, 0.0, 1)   -- Bordure verte plus sobre
     else
-        item.statusText:SetText("|cffFF0000MANQUANT")
+        item.statusText:SetText("|cffFF5722MANQUANT")   -- Orange au lieu de rouge pur
         item:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
     
-    -- Événements de survol
+    -- Événements de survol et clic
     item:EnableMouse(true)
     item:SetScript("OnEnter", function(self)
-        -- Afficher le modèle 3D si disponible
-        if ModelViewer then
-            ModelViewer:UpdateModel(mountName, mountData)
-        end
-        
-        -- Tooltip
+        -- Tooltip seulement
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink("spell:" .. mountData.spellId)
         
@@ -523,13 +561,25 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
         GameTooltip:Hide()
     end)
     
-    -- Clic pour plus d'informations (optionnel)
+    -- Clic pour sélectionner et afficher le modèle
     item:SetScript("OnMouseUp", function(self, button)
         if button == "LeftButton" then
-            -- Action future : ouvrir détail de la monture, etc.
-            print(string.format("Monture sélectionnée: %s (ID: %d)", mountName, mountData.spellId))
+            -- Désélectionner l'ancien item
+            MainFrame:ClearSelection()
+            
+            -- Sélectionner le nouvel item
+            MainFrame:SelectItem(self, mountName, mountData)
+            
+            -- Afficher le modèle 3D
+            if ModelViewer then
+                ModelViewer:UpdateModel(mountName, mountData)
+            end
         end
     end)
+    
+    -- Stocker les données pour la sélection
+    item.mountName = mountName
+    item.mountData = mountData
 end
 
 return MainFrame

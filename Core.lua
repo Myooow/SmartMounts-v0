@@ -189,20 +189,32 @@ function Core.GetTotalCount()
 end
 
 -- Obtenir le nombre de montures utilisables (dans le journal)
-function Core.GetUsableCount()
-    local numMounts = C_MountJournal.GetNumMounts()
-    return numMounts or 0
+Core.GetUsableCount = function()
+    if not (C_MountJournal and C_MountJournal.GetMountIDs) then return 0 end
+    local n = 0
+    for _, id in ipairs(C_MountJournal.GetMountIDs()) do
+        -- name, spellID, icon, active, usable, sourceType,
+        -- isFavorite, isFactionSpecific, faction, hideOnChar, isCollected
+        local _, _, _, _, _, _, _, _, _, hideOnChar, isCollected =
+              C_MountJournal.GetMountInfoByID(id)
+        if isCollected and not hideOnChar then   -- **doit être visible + possédée**
+            n = n + 1
+        end
+    end
+    return n
 end
 
 -- Obtenir le nombre de montures connues (sorts connus)
-function Core.GetKnownCount()
-    local count = 0
-    for _, mountData in pairs(Core.mounts) do
-        if IsSpellKnown(mountData.spellId) then
-            count = count + 1
+Core.GetKnownCount = function()
+    local n = 0
+    for _, id in ipairs(C_MountJournal.GetMountIDs()) do
+        local _, spellID, _, _, _, _, _, _, _, _, isCollected =
+              C_MountJournal.GetMountInfoByID(id)
+        if isCollected and IsPlayerSpell(spellID) then
+            n = n + 1
         end
     end
-    return count
+    return n
 end
 
 -- Obtenir toutes les catégories disponibles
