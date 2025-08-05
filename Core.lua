@@ -8,6 +8,9 @@ SM.DB = SM.DB or {}
 local Core = {}
 addonTable.Core = Core
 
+-- Référence au module Constants (sera disponible après le chargement)
+local Constants
+
 -- Table principale des montures
 Core.mounts = {}
 Core.isLoaded = false
@@ -59,6 +62,9 @@ Core.SOURCE_TYPES = {
 
 -- Charger toutes les bases de données
 local function LoadAllDatabases()
+    -- Récupérer Constants si disponible
+    Constants = addonTable.Utils and addonTable.Utils.Constants
+    
     Core.mounts = {}
     
     -- Fonction helper pour ajouter des montures depuis une DB
@@ -119,10 +125,18 @@ local function LoadAllDatabases()
     
     -- Afficher le résultat du chargement
     if totalLoaded > 0 then
-        print(string.format("|cff00ff00[SmartMounts]|r Base de données chargée: %d montures", totalLoaded))
+        local successMsg = Constants and Constants:FormatMessage(
+            string.format("Base de données chargée: %d montures", totalLoaded), "SUCCESS"
+        ) or string.format("|cff00ff00[SmartMounts]|r Base de données chargée: %d montures", totalLoaded)
+        
+        print(successMsg)
         print("|cff888888Détail: " .. table.concat(loadResults, ", ") .. "|r")
     else
-        print("|cffff0000[SmartMounts]|r Aucune monture chargée - vérifiez vos fichiers de base de données")
+        local errorMsg = Constants and Constants:FormatMessage(
+            "Aucune monture chargée - vérifiez vos fichiers de base de données", "ERROR"
+        ) or "|cffff0000[SmartMounts]|r Aucune monture chargée - vérifiez vos fichiers de base de données"
+        
+        print(errorMsg)
     end
     
     return totalLoaded
@@ -142,7 +156,7 @@ function Core.HasMount(spellId)
     if C_MountJournal and C_MountJournal.GetMountInfoBySpellID then
         local _, _, _, _, _, _, _, _, _, _, isCollected =
               C_MountJournal.GetMountInfoBySpellID(spellId)
-        if isCollected ~= nil then              -- l’API existe et a répondu
+        if isCollected ~= nil then              -- l'API existe et a répondu
             return isCollected                  -- true / false
         end
         -- Si isCollected vaut nil, on continue (spell inconnu ici)
@@ -355,7 +369,9 @@ end
 
 function Core.DebugPrint()
     if not Core.isLoaded then
-        print("|cffff0000[SmartMounts Debug]|r Base de données non chargée")
+        local errorMsg = Constants and Constants:FormatMessage("Base de données non chargée", "ERROR") or 
+            "|cffff0000[SmartMounts Debug]|r Base de données non chargée"
+        print(errorMsg)
         return
     end
     
@@ -424,7 +440,11 @@ local function Initialize()
         C_Timer.After(3, function()
             local retryLoaded = LoadAllDatabases()
             if retryLoaded == 0 then
-                print("|cffff8800[SmartMounts]|r Attention: Aucune base de données trouvée")
+                local warningMsg = Constants and Constants:FormatMessage(
+                    "Attention: Aucune base de données trouvée", "WARNING"
+                ) or "|cffff8800[SmartMounts]|r Attention: Aucune base de données trouvée"
+                
+                print(warningMsg)
                 print("|cff888888Catégories attendues: Achievements, Racial, Professions, Other, Classic, TBC, WotLK, Cataclysm, MoP|r")
             end
         end)

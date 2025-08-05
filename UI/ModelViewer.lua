@@ -5,6 +5,7 @@ addonTable.UI = addonTable.UI or {}
 
 -- Références aux modules
 local Core = addonTable.Core
+local Constants = addonTable.Utils and addonTable.Utils.Constants
 
 -- Module ModelViewer
 local ModelViewer = {}
@@ -44,40 +45,80 @@ function ModelViewer:CreateModelSection(parentFrame)
     -- Titre de la section modèle
     local modelTitle = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     modelTitle:SetPoint("TOP", 0, -15)
-    modelTitle:SetText("Aperçu Monture")
+    modelTitle:SetText(Constants and Constants.MESSAGES.LABELS.MOUNT_PREVIEW or "Aperçu Monture")
     modelTitle:SetTextColor(1, 0.8, 0)
 
     -- Nom de la monture affichée
     modelMountName = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     modelMountName:SetPoint("TOP", modelTitle, "BOTTOM", 0, -10)
-    modelMountName:SetText("Survolez une monture pour l'afficher")
+    modelMountName:SetText(Constants and Constants.MESSAGES.LABELS.HOVER_TO_DISPLAY or "Survolez une monture pour l'afficher")
     modelMountName:SetTextColor(0.7, 0.7, 0.7)
 
-    -- Modèle 3D
-    model = CreateFrame("PlayerModel", nil, modelSection)
-    model:SetSize(340, 400)
-    model:SetPoint("TOP", modelMountName, "BOTTOM", 0, -20)
-    model:EnableMouseWheel(true)
-    model:SetScript("OnMouseWheel", function(self, delta)
-        local currentRotation = self.currentRotation or 0
-        currentRotation = currentRotation + (delta * 0.2)
-        if currentRotation > 6.28 then currentRotation = 0 end
-        if currentRotation < 0 then currentRotation = 6.28 end
-        self:SetRotation(currentRotation)
-        self.currentRotation = currentRotation
+    -- Container pour le modèle 3D avec background pour les icônes de faction
+    local modelContainer = CreateFrame("Frame", nil, modelSection)
+    modelContainer:SetSize(340, 300) -- Réduit la hauteur pour faire de la place
+    modelContainer:SetPoint("TOP", modelMountName, "BOTTOM", 0, -20)
+    
+    -- Texture de fond pour l'icône de faction (cachée par défaut)
+    local factionIcon = modelContainer:CreateTexture(nil, "BACKGROUND")
+    factionIcon:SetSize(200, 200)
+    factionIcon:SetPoint("CENTER")
+    factionIcon:SetAlpha(0.1) -- Très transparent pour effet filigrane
+    factionIcon:Hide()
+    modelContainer.factionIcon = factionIcon
+
+    -- Modèle 3D avec contrôles de rotation par clic + drag
+    model = CreateFrame("PlayerModel", nil, modelContainer)
+    model:SetSize(340, 300) -- Même taille que le container
+    model:SetPoint("TOPLEFT")
+    model:EnableMouse(true)
+    
+    -- Variables pour la rotation par drag
+    local isDragging = false
+    local lastMouseX = 0
+    
+    model:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+            isDragging = true
+            local cursorX = GetCursorPosition()
+            lastMouseX = cursorX
+            self:SetScript("OnUpdate", function(self)
+                if isDragging then
+                    local cursorX = GetCursorPosition()
+                    local deltaX = (cursorX - lastMouseX) * 0.01
+                    local currentRotation = self.currentRotation or 0
+                    currentRotation = currentRotation + deltaX
+                    if currentRotation > 6.28 then currentRotation = currentRotation - 6.28 end
+                    if currentRotation < 0 then currentRotation = currentRotation + 6.28 end
+                    self:SetRotation(currentRotation)
+                    self.currentRotation = currentRotation
+                    lastMouseX = cursorX
+                end
+            end)
+        end
     end)
+    
+    model:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" then
+            isDragging = false
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
+    
+    -- Stocker la référence du container
+    modelSection.modelContainer = modelContainer
 
     -- Instructions de contrôle
     local instructions = modelSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    instructions:SetPoint("TOP", model, "BOTTOM", 0, -10)
-    instructions:SetText("Molette de la souris pour faire tourner")
+    instructions:SetPoint("TOP", modelContainer, "BOTTOM", 0, -5)
+    instructions:SetText(Constants and Constants.MESSAGES.LABELS.MOUSE_DRAG_INSTRUCTION or "Clic gauche + glisser pour faire tourner")
     instructions:SetTextColor(0.7, 0.7, 0.7)
 
-    -- Informations détaillées de la monture
+    -- Créer le cadre des détails après les instructions
     local detailsFrame = self:CreateDetailsFrame(modelSection)
     detailsFrame:SetPoint("TOP", instructions, "BOTTOM", 0, -10)
-
-    -- Boutons d'action
+    
+    -- Boutons d'action placés tout en bas de la frame
     self:CreateActionButtons(modelSection, detailsFrame)
 
     -- Cacher la section par défaut
@@ -88,7 +129,7 @@ end
 
 function ModelViewer:CreateDetailsFrame(parent)
     local detailsFrame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    detailsFrame:SetSize(340, 120)
+    detailsFrame:SetSize(340, 140) -- Augmenté légèrement pour plus d'espace
     detailsFrame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -111,15 +152,16 @@ function ModelViewer:CreateDetailsFrame(parent)
     return detailsFrame
 end
 
-function ModelViewer:CreateActionButtons(parent, detailsFrame)
+function ModelViewer:CreateActionButtons(parent, anchorFrame)
     local buttonContainer = CreateFrame("Frame", nil, parent)
-    buttonContainer:SetSize(340, 40)
-    buttonContainer:SetPoint("TOP", detailsFrame, "BOTTOM", 0, -10)
+    buttonContainer:SetSize(340, 35)
+    -- Positionner les boutons tout en bas de la frame principale
+    buttonContainer:SetPoint("BOTTOM", parent, "BOTTOM", 0, 15)
 
     -- Bouton d'information détaillée
     local infoButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
-    infoButton:SetSize(150, 30)
-    infoButton:SetPoint("LEFT", 20, 0)
+    infoButton:SetSize(160, 25)
+    infoButton:SetPoint("LEFT", 10, 0)
     infoButton:SetText("Afficher détails")
     infoButton:SetScript("OnClick", function(self)
         ModelViewer:ShowMountDetails()
@@ -127,8 +169,8 @@ function ModelViewer:CreateActionButtons(parent, detailsFrame)
 
     -- Bouton pour invoquer la monture (si collectée)
     local summonButton = CreateFrame("Button", nil, buttonContainer, "GameMenuButtonTemplate")
-    summonButton:SetSize(150, 30)
-    summonButton:SetPoint("RIGHT", -20, 0)
+    summonButton:SetSize(160, 25)
+    summonButton:SetPoint("RIGHT", -10, 0)
     summonButton:SetText("Invoquer")
     summonButton:SetScript("OnClick", function(self)
         ModelViewer:SummonMount()
@@ -139,6 +181,8 @@ function ModelViewer:CreateActionButtons(parent, detailsFrame)
     buttonContainer.summonButton = summonButton
     
     parent.actionButtons = buttonContainer
+    
+    return buttonContainer
 end
 
 function ModelViewer:UpdateModel(mountName, mountData)
@@ -150,23 +194,28 @@ function ModelViewer:UpdateModel(mountName, mountData)
     currentMountData = mountData
     currentMountName = mountName
 
-    -- Mettre à jour le nom avec icône de faction si nécessaire
+    -- Mettre à jour le nom (sans icône, elle sera en arrière-plan)
     if modelMountName then
         local isCollected = Core and Core.HasMount(mountData.spellId)
-        local nameColor = isCollected and "|cff4CAF50" or "|cffFFFFFF"  -- Même vert sobre
+        local nameColor = Constants and Constants:GetCollectionStatusColor(isCollected) or (isCollected and "|cff4CAF50" or "|cffFFFFFF")
+        modelMountName:SetText(nameColor .. mountName)
+    end
+    
+    -- Mettre à jour l'icône de faction en arrière-plan
+    if modelSection and modelSection.modelContainer and modelSection.modelContainer.factionIcon then
+        local factionIcon = modelSection.modelContainer.factionIcon
         
-        local displayName = nameColor .. mountName
-        
-        -- Ajouter l'icône de faction si nécessaire
         if mountData.isFactionSpecific and mountData.faction then
-            if mountData.faction == "Alliance" then
-                displayName = displayName .. " |TInterface\\PVPFrame\\PVP-Currency-Alliance:16:16|t"
+            local factionTexture = Constants and Constants:GetFactionTexture(mountData.faction)
+            if factionTexture then
+                factionIcon:SetTexture(factionTexture)
+                factionIcon:Show()
             else
-                displayName = displayName .. " |TInterface\\PVPFrame\\PVP-Currency-Horde:16:16|t"
+                factionIcon:Hide()
             end
+        else
+            factionIcon:Hide()
         end
-        
-        modelMountName:SetText(displayName)
     end
 
     -- Afficher le modèle 3D si possible
@@ -228,9 +277,12 @@ function ModelViewer:UpdateDetails(mountData)
             
             -- Status de collection
             local isCollected = Core and Core.HasMount(mountData.spellId)
-            local statusColor = isCollected and "|cff4CAF50" or "|cffFF5722"  -- Vert sobre et orange
+            local statusColor = MountConstants and MountConstants.COLORS.SUCCESS or "|cff00FF00"
+            local missingColor = MountConstants and MountConstants.COLORS.WARNING or "|cffFF5722"
+            local finalStatusColor = isCollected and statusColor or missingColor
             local statusText = isCollected and "COLLECTÉ" or "MANQUANT"
-            table.insert(infoLines, "|cffFFD700Statut:|r " .. statusColor .. statusText)
+            local infoColor = MountConstants and MountConstants.COLORS.INFO or "|cffFFD700"
+            table.insert(infoLines, infoColor .. "Statut:|r " .. finalStatusColor .. statusText)
             
             child.infoText:SetText(table.concat(infoLines, "\n"))
             break
@@ -259,37 +311,40 @@ end
 
 function ModelViewer:ShowMountDetails()
     if not currentMountData or not currentMountName then
-        print("|cffff8800[SmartMounts]|r Aucune monture sélectionnée")
+        local errorMsg = Constants and Constants:GetErrorMessage("NO_MOUNT_SELECTED") or "|cffff8800[SmartMounts]|r Aucune monture sélectionnée"
+        print(errorMsg)
         return
     end
 
     print("|cff00ff00=== Détails de la monture ===|r")
-    print("|cffFFD700Nom:|r " .. (currentMountName or "N/A"))
-    print("|cffFFD700ID Sort:|r " .. (currentMountData.spellId or "N/A"))
-    print("|cffFFD700Catégorie:|r " .. (currentMountData.category or "N/A"))
-    print("|cffFFD700Expansion:|r " .. (currentMountData.expansion or "N/A"))
-    print("|cffFFD700Source:|r " .. (currentMountData.source or "N/A"))
+    local details = Constants and Constants.MESSAGES.DETAILS or {}
+    
+    print((details.NAME or "|cffFFD700Nom:|r") .. " " .. (currentMountName or "N/A"))
+    print((details.SPELL_ID or "|cffFFD700ID Sort:|r") .. " " .. (currentMountData.spellId or "N/A"))
+    print((details.CATEGORY or "|cffFFD700Catégorie:|r") .. " " .. (currentMountData.category or "N/A"))
+    print((details.EXPANSION or "|cffFFD700Expansion:|r") .. " " .. (currentMountData.expansion or "N/A"))
+    print((details.SOURCE or "|cffFFD700Source:|r") .. " " .. (currentMountData.source or "N/A"))
     
     if currentMountData.boss then
-        print("|cffFFD700Boss:|r " .. currentMountData.boss)
+        print((details.BOSS or "|cffFFD700Boss:|r") .. " " .. currentMountData.boss)
     end
     
     if currentMountData.dropChance then
-        print("|cffFFD700Taux de drop:|r " .. currentMountData.dropChance)
+        print((details.DROP_RATE or "|cffFFD700Taux de drop:|r") .. " " .. currentMountData.dropChance)
     end
     
     if currentMountData.difficulty then
-        print("|cffFFD700Difficulté:|r " .. currentMountData.difficulty)
+        print((details.DIFFICULTY or "|cffFFD700Difficulté:|r") .. " " .. currentMountData.difficulty)
     end
     
     if currentMountData.creatureDisplayId then
-        print("|cffFFD700ID Modèle:|r " .. currentMountData.creatureDisplayId)
+        print((details.MODEL_ID or "|cffFFD700ID Modèle:|r") .. " " .. currentMountData.creatureDisplayId)
     end
     
     local isCollected = Core and Core.HasMount(currentMountData.spellId)
-    local statusColor = isCollected and "|cff00FF00" or "|cffFF0000"
+    local statusColor = Constants and (isCollected and Constants.COLORS.SUCCESS or Constants.COLORS.ERROR) or (isCollected and "|cff00FF00" or "|cffFF0000")
     local statusText = isCollected and "OUI" or "NON"
-    print("|cffFFD700Collecté:|r " .. statusColor .. statusText)
+    print((details.COLLECTED_STATUS or "|cffFFD700Collecté:|r") .. " " .. statusColor .. statusText .. "|r")
 end
 
 function ModelViewer:OpenMountJournal()

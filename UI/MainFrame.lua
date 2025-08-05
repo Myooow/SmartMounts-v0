@@ -5,6 +5,7 @@ addonTable.UI = addonTable.UI or {}
 
 -- Références aux modules
 local Core = addonTable.Core
+local Constants = addonTable.Utils and addonTable.Utils.Constants
 local ModelViewer
 
 -- Module MainFrame
@@ -43,13 +44,15 @@ local frame
 local currentFilter = "all"
 local searchText = ""
 local selectedItem = nil -- Item actuellement sélectionné
+local searchTimer -- Timer pour la recherche différée
 
 -------------------------------------------------
 -- Interface de gestion
 -------------------------------------------------
 function MainFrame:Show()
     if not Core or not Core.isLoaded then
-        print("|cffff0000[SmartMounts]|r Base de données non chargée")
+        local errorMsg = Constants and Constants:GetErrorMessage("DATABASE_NOT_LOADED") or "Base de données non chargée"
+        print(Constants and Constants.ADDON.PREFIX or "|cffff8800[SmartMounts]|r", errorMsg)
         return
     end
     
@@ -60,11 +63,21 @@ function MainFrame:Show()
     frame:Show()
     self:RefreshMountList()
     self:UpdateStats()
+    
+    -- Enregistrer pour la fermeture avec Échap
+    table.insert(UISpecialFrames, frame:GetName())
 end
 
 function MainFrame:Hide()
     if frame then
         frame:Hide()
+        -- Retirer de UISpecialFrames pour éviter les doublons
+        for i = #UISpecialFrames, 1, -1 do
+            if UISpecialFrames[i] == frame:GetName() then
+                table.remove(UISpecialFrames, i)
+                break
+            end
+        end
     end
 end
 
@@ -87,11 +100,12 @@ function MainFrame:CreateFrame()
     -- Récupérer ModelViewer après création
     ModelViewer = addonTable.UI.ModelViewer
     
-    -- Récupérer les paramètres sauvegardés
-    local savedWidth = SmartMountsDB.window.width or 950
-    local savedHeight = SmartMountsDB.window.height or 700
+    -- Récupérer les paramètres sauvegardés ou utiliser les constantes
+    local defaultSize = Constants and Constants.UI.WINDOW_SIZES.MAIN or {width = 950, height = 700}
+    local savedWidth = SmartMountsDB.window.width or defaultSize.width
+    local savedHeight = SmartMountsDB.window.height or defaultSize.height
     
-    -- Création de la frame principale
+    -- Création de la frame principale avec nom unique pour UISpecialFrames
     frame = CreateFrame("Frame", "SmartMountsMainFrame", UIParent, "BackdropTemplate")
     frame:SetSize(savedWidth, savedHeight)
     frame:SetPoint("CENTER")
@@ -124,7 +138,7 @@ function MainFrame:CreateFrame()
     -- Titre
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", 0, -15)
-    title:SetText("SmartMounts")
+    title:SetText(Constants and Constants.ADDON.NAME or "SmartMounts")
     title:SetTextColor(1, 0.8, 0)
     
     -- Statistiques
@@ -154,22 +168,40 @@ end
 -- Création des contrôles
 -------------------------------------------------
 function MainFrame:CreateControls(parent)
-    -- Barre de recherche
+    -- Barre de recherche avec recherche différée
     local searchBox = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
     searchBox:SetSize(200, 20)
     searchBox:SetPoint("TOPLEFT", 420, -70)
     searchBox:SetAutoFocus(false)
     searchBox:SetText(SmartMountsDB.filters.searchText or "")
+    
+    -- Recherche différée pour éviter le lag
+    local function DelayedSearch()
+        if searchTimer then
+            searchTimer:Cancel()
+        end
+        searchTimer = C_Timer.NewTimer(0.3, function()
+            MainFrame:RefreshMountList()
+            searchTimer = nil
+        end)
+    end
+    
     searchBox:SetScript("OnTextChanged", function(self)
         local newText = self:GetText():lower()
         if newText ~= searchText then
             searchText = newText
             SmartMountsDB.filters.searchText = newText
-            MainFrame:RefreshMountList()
+            DelayedSearch() -- Recherche différée au lieu d'immédiate
         end
     end)
     searchBox:SetScript("OnEnterPressed", function(self)
         self:ClearFocus()
+        -- Forcer la recherche immédiate quand on appuie sur Entrée
+        if searchTimer then
+            searchTimer:Cancel()
+            searchTimer = nil
+        end
+        MainFrame:RefreshMountList()
     end)
     frame.searchBox = searchBox
 
@@ -218,10 +250,12 @@ function MainFrame:CreateControls(parent)
         info.notCheckable = true
         UIDropDownMenu_AddButton(info)
         
-        -- Filtres par catégories
+        -- Filtres par catégories (cache pour performance)
         if Core and Core.isLoaded then
-            local categories = Core.GetCategories()
-            for _, category in ipairs(categories) do
+            if not filterDropdown._categoriesCache then
+                filterDropdown._categoriesCache = Core.GetCategories()
+            end
+            for _, category in ipairs(filterDropdown._categoriesCache) do
                 info = UIDropDownMenu_CreateInfo()
                 info.text = category
                 info.value = category
@@ -293,11 +327,16 @@ function MainFrame:SetFilter(filterValue)
         UIDropDownMenu_SetText(frame.filterDropdown, filterValue)
     end
     
+    -- Invalider le cache des catégories pour forcer un refresh
+    if frame.filterDropdown then
+        frame.filterDropdown._categoriesCache = nil
+    end
+    
     self:RefreshMountList()
 end
 
 -------------------------------------------------
--- Mise à jour de la liste des montures
+-- Mise à jour de la liste des montures - OPTIMISÉE
 -------------------------------------------------
 function MainFrame:RefreshMountList()
     if not frame or not frame.scrollChild or not Core or not Core.isLoaded then
@@ -311,15 +350,26 @@ function MainFrame:RefreshMountList()
         scrollChild.mountItems[i]:Hide()
     end
 
-    -- Obtenir les montures filtrées
-    local filteredMounts = self:GetFilteredMounts()
+    -- Cache des résultats pour éviter les recalculs
+    local filteredMounts
+    if not scrollChild._mountsCache or scrollChild._lastFilter ~= currentFilter or scrollChild._lastSearch ~= searchText then
+        filteredMounts = self:GetFilteredMounts()
+        self:SortMounts(filteredMounts)
+        
+        -- Mise à jour du cache
+        scrollChild._mountsCache = filteredMounts
+        scrollChild._lastFilter = currentFilter
+        scrollChild._lastSearch = searchText
+    else
+        filteredMounts = scrollChild._mountsCache
+    end
     
-    -- Trier les montures
-    self:SortMounts(filteredMounts)
-    
-    -- Créer les éléments de la liste
+    -- Créer les éléments de la liste (maximum 50 à la fois pour éviter le freeze)
     local yOffset = -5
-    for i, mount in ipairs(filteredMounts) do
+    local maxItems = math.min(#filteredMounts, 50)
+    
+    for i = 1, maxItems do
+        local mount = filteredMounts[i]
         local item = scrollChild.mountItems[i]
         if not item then
             item = self:CreateMountItem(scrollChild)
@@ -332,12 +382,31 @@ function MainFrame:RefreshMountList()
         yOffset = yOffset - 80
     end
     
+    -- Si plus de 50 montures, utiliser une pagination ou lazy loading
+    if #filteredMounts > 50 then
+        -- Ajouter un texte indiquant qu'il y a plus de résultats
+        local moreText = scrollChild.moreText
+        if not moreText then
+            moreText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            moreText:SetPoint("TOPLEFT", 0, yOffset)
+            moreText:SetTextColor(0.7, 0.7, 0.7)
+            scrollChild.moreText = moreText
+        end
+        moreText:SetText(string.format("... et %d autres montures (affinez votre recherche)", #filteredMounts - 50))
+        moreText:Show()
+        yOffset = yOffset - 30
+    else
+        if scrollChild.moreText then
+            scrollChild.moreText:Hide()
+        end
+    end
+    
     scrollChild:SetHeight(math.abs(yOffset) + 10)
     self:UpdateStats()
 end
 
 -------------------------------------------------
--- Filtrage des montures
+-- Filtrage des montures - OPTIMISÉ avec cache
 -------------------------------------------------
 function MainFrame:GetFilteredMounts()
     local filteredMounts = {}
@@ -346,12 +415,22 @@ function MainFrame:GetFilteredMounts()
         return filteredMounts
     end
     
+    -- Cache des résultats de recherche pour éviter les recalculs
+    local searchResults = nil
+    if searchText ~= "" then
+        if not Core._searchCache or Core._searchCache.query ~= searchText then
+            searchResults = Core.SearchMounts(searchText)
+            Core._searchCache = {query = searchText, results = searchResults}
+        else
+            searchResults = Core._searchCache.results
+        end
+    end
+    
     for mountId, mountData in pairs(Core.mounts) do
         local shouldShow = true
         
         -- Filtre de recherche
         if searchText ~= "" then
-            local searchResults = Core.SearchMounts(searchText)
             shouldShow = (searchResults[mountId] ~= nil)
         end
         
@@ -395,22 +474,35 @@ function MainFrame:SortMounts(mounts)
 end
 
 -------------------------------------------------
--- Mise à jour des statistiques
+-- Mise à jour des statistiques - OPTIMISÉE
 -------------------------------------------------
 function MainFrame:UpdateStats()
     if not frame or not frame.statsText or not Core or not Core.isLoaded then
         return
     end
     
-    local collected = Core.GetCollectedCount()
-    local total = Core.GetTotalCount()
-    local usable = Core.GetUsableCount()
-    local known = Core.GetKnownCount()
-    local percentage = total > 0 and math.floor((collected / total) * 100) or 0
+    -- Cache des statistiques pour éviter les recalculs fréquents
+    if not Core._statsCache or (GetTime() - (Core._lastStatsUpdate or 0)) > 2 then
+        local collected = Core.GetCollectedCount()
+        local total = Core.GetTotalCount()
+        local usable = Core.GetUsableCount()
+        local known = Core.GetKnownCount()
+        local percentage = total > 0 and math.floor((collected / total) * 100) or 0
+        
+        Core._statsCache = {
+            collected = collected,
+            total = total,
+            usable = usable,
+            known = known,
+            percentage = percentage
+        }
+        Core._lastStatsUpdate = GetTime()
+    end
     
+    local stats = Core._statsCache
     frame.statsText:SetText(string.format(
         "|cffffffff%d|r utilisables |cffffffff%d|r connues |cff00ff00%d|r collectées |cff999999%d|r possibles |cffaaaaaa(%d%%)|r",
-        known, usable, collected, total, percentage
+        stats.known, stats.usable, stats.collected, stats.total, stats.percentage
     ))
 end
 
@@ -464,11 +556,13 @@ end
 -- Configuration d'un élément de monture
 -------------------------------------------------
 function MainFrame:SetupMountItem(item, mountName, mountData)
-    -- Icône principale
+    -- Icône principale (cache pour éviter les GetSpellInfo répétés)
     local iconTexture = mountData.icon
     if not iconTexture or iconTexture == "" then
-        iconTexture = select(3, GetSpellInfo(mountData.spellId))
-            or "Interface\\Icons\\INV_Misc_QuestionMark"
+        if not mountData._cachedIcon then
+            mountData._cachedIcon = select(3, GetSpellInfo(mountData.spellId)) or "Interface\\Icons\\INV_Misc_QuestionMark"
+        end
+        iconTexture = mountData._cachedIcon
     end
     item.icon:SetTexture(iconTexture)
 
@@ -481,11 +575,19 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
             item.factionIcon:SetAlpha(0.7)
         end
         
-        if mountData.faction == "Alliance" then
-            item.factionIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Alliance")
-        else
-            item.factionIcon:SetTexture("Interface\\PVPFrame\\PVP-Currency-Horde")
+        -- Cache de la texture de faction
+        if not mountData._cachedFactionTexture then
+            local factionTexture = Constants and Constants:GetFactionTexture(mountData.faction)
+            if factionTexture then
+                mountData._cachedFactionTexture = factionTexture
+            else
+                -- Fallback vers les anciennes textures
+                mountData._cachedFactionTexture = mountData.faction == "Alliance" and 
+                    "Interface\\PVPFrame\\PVP-Currency-Alliance" or 
+                    "Interface\\PVPFrame\\PVP-Currency-Horde"
+            end
         end
+        item.factionIcon:SetTexture(mountData._cachedFactionTexture)
         item.factionIcon:Show()
     else
         if item.factionIcon then
@@ -493,41 +595,54 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
         end
     end
 
-    -- Nom avec couleur selon le statut (vert plus sobre)
+    -- Nom avec couleur selon le statut
     local isCollected = Core.HasMount(mountData.spellId)
-    local nameColor = isCollected and "|cff4CAF50" or "|cffFFFFFF"  -- Vert plus sobre
+    local nameColor = Constants and Constants:GetCollectionStatusColor(isCollected) or (isCollected and "|cff4CAF50" or "|cffFFFFFF")
     item.nameText:SetText(nameColor .. mountName)
     
-    -- Informations de base (sans afficher la faction en texte)
-    local infoStr = string.format("|cffFFD700%s|r", mountData.category or "Unknown")
-    if mountData.sourceTypeLocalized then
-        infoStr = infoStr .. string.format(" - |cff87CEEB%s|r", mountData.sourceTypeLocalized)
+    -- Cache des strings formatées pour éviter les string.format répétés
+    if not mountData._cachedInfoStr then
+        local primaryColor = Constants and Constants.COLORS.PRIMARY or "|cffFFD700"
+        local infoColor = Constants and Constants.COLORS.INFO or "|cff87CEEB"
+        
+        mountData._cachedInfoStr = string.format("%s%s|r", primaryColor, mountData.category or "Unknown")
+        if mountData.sourceTypeLocalized then
+            mountData._cachedInfoStr = mountData._cachedInfoStr .. string.format(" - %s%s|r", infoColor, mountData.sourceTypeLocalized)
+        end
     end
-    item.infoText:SetText(infoStr)
+    item.infoText:SetText(mountData._cachedInfoStr)
     
-    -- Source détaillée
-    local sourceStr = ""
-    if mountData.source then
-        sourceStr = string.format("|cffFFA500%s|r", mountData.source)
+    -- Source détaillée (cache aussi)
+    if not mountData._cachedSourceStr then
+        local sourceStr = ""
+        if mountData.source then
+            sourceStr = string.format("|cffFFA500%s|r", mountData.source)
+        end
+        if mountData.boss then
+            sourceStr = sourceStr .. string.format(" |cff888888(%s)|r", mountData.boss)
+        end
+        if mountData.dropChance then
+            sourceStr = sourceStr .. string.format(" - |cffFF6347%s|r", mountData.dropChance)
+        end
+        if mountData.difficulty then
+            sourceStr = sourceStr .. string.format(" - |cffDDA0DD%s|r", mountData.difficulty)
+        end
+        mountData._cachedSourceStr = sourceStr
     end
-    if mountData.boss then
-        sourceStr = sourceStr .. string.format(" |cff888888(%s)|r", mountData.boss)
-    end
-    if mountData.dropChance then
-        sourceStr = sourceStr .. string.format(" - |cffFF6347%s|r", mountData.dropChance)
-    end
-    if mountData.difficulty then
-        sourceStr = sourceStr .. string.format(" - |cffDDA0DD%s|r", mountData.difficulty)
-    end
-    item.sourceText:SetText(sourceStr)
+    item.sourceText:SetText(mountData._cachedSourceStr)
     
     -- Status et apparence
+    local collectedText = Constants and Constants.MESSAGES.LABELS.COLLECTED or "COLLECTÉ"
+    local missingText = Constants and Constants.MESSAGES.LABELS.MISSING or "MANQUANT"
+    local collectedColor = Constants and Constants.COLORS.COLLECTED or "|cff4CAF50"
+    local warningColor = Constants and Constants.COLORS.WARNING or "|cffFF5722"
+    
     if isCollected then
-        item.statusText:SetText("|cff4CAF50COLLECTÉ")  -- Vert plus sobre
-        item:SetBackdropColor(0.0, 0.15, 0.0, 0.8)     -- Vert de fond plus sobre
-        item:SetBackdropBorderColor(0.0, 0.5, 0.0, 1)   -- Bordure verte plus sobre
+        item.statusText:SetText(collectedColor .. collectedText)
+        item:SetBackdropColor(0.0, 0.15, 0.0, 0.8)
+        item:SetBackdropBorderColor(0.0, 0.5, 0.0, 1)
     else
-        item.statusText:SetText("|cffFF5722MANQUANT")   -- Orange au lieu de rouge pur
+        item.statusText:SetText(warningColor .. missingText)
         item:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
         item:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
     end
@@ -540,18 +655,19 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
         GameTooltip:SetHyperlink("spell:" .. mountData.spellId)
         
         -- Ajouter des informations supplémentaires
+        local details = Constants and Constants.MESSAGES.DETAILS or {}
         if mountData.source then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("|cffFFD700Source:|r " .. mountData.source, 1, 1, 1, true)
+            GameTooltip:AddLine((details.SOURCE or "|cffFFD700Source:|r") .. " " .. mountData.source, 1, 1, 1, true)
         end
         if mountData.boss then
-            GameTooltip:AddLine("|cffFFD700Boss:|r " .. mountData.boss, 1, 1, 1, true)
+            GameTooltip:AddLine((details.BOSS or "|cffFFD700Boss:|r") .. " " .. mountData.boss, 1, 1, 1, true)
         end
         if mountData.dropChance then
-            GameTooltip:AddLine("|cffFFD700Taux de drop:|r " .. mountData.dropChance, 1, 1, 1, true)
+            GameTooltip:AddLine((details.DROP_RATE or "|cffFFD700Taux de drop:|r") .. " " .. mountData.dropChance, 1, 1, 1, true)
         end
         if mountData.difficulty then
-            GameTooltip:AddLine("|cffFFD700Difficulté:|r " .. mountData.difficulty, 1, 1, 1, true)
+            GameTooltip:AddLine((details.DIFFICULTY or "|cffFFD700Difficulté:|r") .. " " .. mountData.difficulty, 1, 1, 1, true)
         end
         
         GameTooltip:Show()

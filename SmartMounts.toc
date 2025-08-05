@@ -27,6 +27,9 @@ Database\MistsOfPandaria.lua
 ## Core système
 Core.lua
 
+## Utils
+utils\Constants.lua
+
 ## UI Components  
 UI\ModelViewer.lua
 UI\MainFrame.lua
