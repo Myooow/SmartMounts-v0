@@ -42,16 +42,6 @@ SM.DB.Other = {
 		["sourceType"] = "VENDOR",
 		["isFactionSpecific"] = false,
 		["faction"] = ""
-	},
-	[619] = {
-		["name"] = "Blacksteel Battleboar",
-		["spellId"] = 171627,
-		["mountId"] = 619,
-		["creatureDisplayId"] = 59349,
-		["source"] = "Haut fait",
-		["sourceType"] = "ACHIEVEMENT",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
 	}
 }
 

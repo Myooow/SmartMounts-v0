@@ -822,16 +822,6 @@ SM.DB.Racial = {
 		["sourceType"] = "VENDOR",
 		["isFactionSpecific"] = true,
 		["faction"] = "Horde"
-	},
-	[1600] = {
-		["name"] = "Elusive Emerald Hawkstrider",
-		["spellId"] = 370620,
-		["mountId"] = 1600,
-		["creatureDisplayId"] = 106262,
-		["source"] = "QuÃªte",
-		["sourceType"] = "QUEST",
-		["isFactionSpecific"] = true,
-		["faction"] = "Horde"
 	}
 }
 

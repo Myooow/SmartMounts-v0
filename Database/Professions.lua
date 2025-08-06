@@ -33,16 +33,6 @@ SM.DB.Professions = {
 		["isFactionSpecific"] = false,
 		["faction"] = ""
 	},
-	[779] = {
-		["name"] = "Spirit of Eche'ro",
-		["spellId"] = 196681,
-		["mountId"] = 779,
-		["creatureDisplayId"] = 70874,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
 	[205] = {
 		["name"] = "Flying Machine",
 		["spellId"] = 44153,
@@ -113,36 +103,6 @@ SM.DB.Professions = {
 		["isFactionSpecific"] = false,
 		["faction"] = ""
 	},
-	[1028] = {
-		["name"] = "Mecha-Mogul Mk2",
-		["spellId"] = 261437,
-		["mountId"] = 1028,
-		["creatureDisplayId"] = 80864,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[999] = {
-		["name"] = "Xiwyllag ATV",
-		["spellId"] = 256123,
-		["mountId"] = 999,
-		["creatureDisplayId"] = 80513,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[2158] = {
-		["name"] = "Crowd Pummeler 2-30",
-		["spellId"] = 448186,
-		["mountId"] = 2158,
-		["creatureDisplayId"] = 119383,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
 	[312] = {
 		["name"] = "Sea Turtle",
 		["spellId"] = 64731,
@@ -160,36 +120,6 @@ SM.DB.Professions = {
 		["creatureDisplayId"] = 17158,
 		["source"] = "Jeu de cartes Ã  collectionner",
 		["sourceType"] = "TCG",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[982] = {
-		["name"] = "Pond Nettle",
-		["spellId"] = 253711,
-		["mountId"] = 982,
-		["creatureDisplayId"] = 79613,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[1166] = {
-		["name"] = "Great Sea Ray",
-		["spellId"] = 278803,
-		["mountId"] = 1166,
-		["creatureDisplayId"] = 73253,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[2188] = {
-		["name"] = "Kah, Legend of the Deep",
-		["spellId"] = 448850,
-		["mountId"] = 2188,
-		["creatureDisplayId"] = 119507,
-		["source"] = "Comptoir",
-		["sourceType"] = "TRADINGPOST",
 		["isFactionSpecific"] = false,
 		["faction"] = ""
 	},
@@ -243,16 +173,6 @@ SM.DB.Professions = {
 		["isFactionSpecific"] = false,
 		["faction"] = ""
 	},
-	[2502] = {
-		["name"] = "Void-Crystal Panther",
-		["spellId"] = 1218317,
-		["mountId"] = 2502,
-		["creatureDisplayId"] = 127586,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
 	[285] = {
 		["name"] = "Flying Carpet",
 		["spellId"] = 61451,
@@ -278,46 +198,6 @@ SM.DB.Professions = {
 		["spellId"] = 61309,
 		["mountId"] = 279,
 		["creatureDisplayId"] = 28060,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[603] = {
-		["name"] = "Creeping Carpet",
-		["spellId"] = 169952,
-		["mountId"] = 603,
-		["creatureDisplayId"] = 46453,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[650] = {
-		["name"] = "Dustmane Direwolf",
-		["spellId"] = 171844,
-		["mountId"] = 650,
-		["creatureDisplayId"] = 59762,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[854] = {
-		["name"] = "Great Northern Elderhorn",
-		["spellId"] = 213339,
-		["mountId"] = 854,
-		["creatureDisplayId"] = 67042,
-		["source"] = "MÃ©tier",
-		["sourceType"] = "PROFESSION",
-		["isFactionSpecific"] = false,
-		["faction"] = ""
-	},
-	[797] = {
-		["name"] = "Steelbound Devourer",
-		["spellId"] = 213209,
-		["mountId"] = 797,
-		["creatureDisplayId"] = 70099,
 		["source"] = "MÃ©tier",
 		["sourceType"] = "PROFESSION",
 		["isFactionSpecific"] = false,
