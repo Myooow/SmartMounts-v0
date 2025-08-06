@@ -364,11 +364,10 @@ function MainFrame:RefreshMountList()
         filteredMounts = scrollChild._mountsCache
     end
     
-    -- Créer les éléments de la liste (maximum 50 à la fois pour éviter le freeze)
+    -- Créer les éléments de la liste pour toutes les montures
     local yOffset = -5
-    local maxItems = math.min(#filteredMounts, 50)
     
-    for i = 1, maxItems do
+    for i = 1, #filteredMounts do
         local mount = filteredMounts[i]
         local item = scrollChild.mountItems[i]
         if not item then
@@ -380,25 +379,6 @@ function MainFrame:RefreshMountList()
         item:SetPoint("TOPLEFT", 0, yOffset)
         item:Show()
         yOffset = yOffset - 80
-    end
-    
-    -- Si plus de 50 montures, utiliser une pagination ou lazy loading
-    if #filteredMounts > 50 then
-        -- Ajouter un texte indiquant qu'il y a plus de résultats
-        local moreText = scrollChild.moreText
-        if not moreText then
-            moreText = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            moreText:SetPoint("TOPLEFT", 0, yOffset)
-            moreText:SetTextColor(0.7, 0.7, 0.7)
-            scrollChild.moreText = moreText
-        end
-        moreText:SetText(string.format("... et %d autres montures (affinez votre recherche)", #filteredMounts - 50))
-        moreText:Show()
-        yOffset = yOffset - 30
-    else
-        if scrollChild.moreText then
-            scrollChild.moreText:Hide()
-        end
     end
     
     scrollChild:SetHeight(math.abs(yOffset) + 10)
@@ -461,16 +441,19 @@ end
 -- Tri des montures
 -------------------------------------------------
 function MainFrame:SortMounts(mounts)
-    local order = Core.CATEGORY_ORDER or {}
+    -- local order = Core.CATEGORY_ORDER or {}
     table.sort(mounts, function(a, b)
-        local oa = order[a.data.category] or math.huge
-        local ob = order[b.data.category] or math.huge
-        if oa == ob then
-            return a.name < b.name
-        else
-            return oa < ob
-        end
+         return a.name < b.name   
     end)
+    -- table.sort(mounts, function(a, b)
+    --     local oa = order[a.data.category] or math.huge
+    --     local ob = order[b.data.category] or math.huge
+    --     if oa == ob then
+    --         return a.name < b.name
+    --     else
+    --         return oa < ob
+    --     end
+    -- end)
 end
 
 -------------------------------------------------
@@ -565,35 +548,6 @@ function MainFrame:SetupMountItem(item, mountName, mountData)
         iconTexture = mountData._cachedIcon
     end
     item.icon:SetTexture(iconTexture)
-
-    -- Icône de faction en arrière-plan si nécessaire
-    if mountData.isFactionSpecific and mountData.faction then
-        if not item.factionIcon then
-            item.factionIcon = item:CreateTexture(nil, "BACKGROUND")
-            item.factionIcon:SetSize(20, 20)
-            item.factionIcon:SetPoint("TOPRIGHT", item.icon, "TOPRIGHT", -2, -2)
-            item.factionIcon:SetAlpha(0.7)
-        end
-        
-        -- Cache de la texture de faction
-        if not mountData._cachedFactionTexture then
-            local factionTexture = Constants and Constants:GetFactionTexture(mountData.faction)
-            if factionTexture then
-                mountData._cachedFactionTexture = factionTexture
-            else
-                -- Fallback vers les anciennes textures
-                mountData._cachedFactionTexture = mountData.faction == "Alliance" and 
-                    "Interface\\PVPFrame\\PVP-Currency-Alliance" or 
-                    "Interface\\PVPFrame\\PVP-Currency-Horde"
-            end
-        end
-        item.factionIcon:SetTexture(mountData._cachedFactionTexture)
-        item.factionIcon:Show()
-    else
-        if item.factionIcon then
-            item.factionIcon:Hide()
-        end
-    end
 
     -- Nom avec couleur selon le statut
     local isCollected = Core.HasMount(mountData.spellId)

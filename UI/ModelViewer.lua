@@ -54,18 +54,10 @@ function ModelViewer:CreateModelSection(parentFrame)
     modelMountName:SetText(Constants and Constants.MESSAGES.LABELS.HOVER_TO_DISPLAY or "Survolez une monture pour l'afficher")
     modelMountName:SetTextColor(0.7, 0.7, 0.7)
 
-    -- Container pour le modèle 3D avec background pour les icônes de faction
+    -- Container pour le modèle 3D
     local modelContainer = CreateFrame("Frame", nil, modelSection)
     modelContainer:SetSize(340, 300) -- Réduit la hauteur pour faire de la place
     modelContainer:SetPoint("TOP", modelMountName, "BOTTOM", 0, -20)
-    
-    -- Texture de fond pour l'icône de faction (cachée par défaut)
-    local factionIcon = modelContainer:CreateTexture(nil, "BACKGROUND")
-    factionIcon:SetSize(200, 200)
-    factionIcon:SetPoint("CENTER")
-    factionIcon:SetAlpha(0.1) -- Très transparent pour effet filigrane
-    factionIcon:Hide()
-    modelContainer.factionIcon = factionIcon
 
     -- Modèle 3D avec contrôles de rotation par clic + drag
     model = CreateFrame("PlayerModel", nil, modelContainer)
@@ -194,28 +186,11 @@ function ModelViewer:UpdateModel(mountName, mountData)
     currentMountData = mountData
     currentMountName = mountName
 
-    -- Mettre à jour le nom (sans icône, elle sera en arrière-plan)
+    -- Mettre à jour le nom
     if modelMountName then
         local isCollected = Core and Core.HasMount(mountData.spellId)
         local nameColor = Constants and Constants:GetCollectionStatusColor(isCollected) or (isCollected and "|cff4CAF50" or "|cffFFFFFF")
         modelMountName:SetText(nameColor .. mountName)
-    end
-    
-    -- Mettre à jour l'icône de faction en arrière-plan
-    if modelSection and modelSection.modelContainer and modelSection.modelContainer.factionIcon then
-        local factionIcon = modelSection.modelContainer.factionIcon
-        
-        if mountData.isFactionSpecific and mountData.faction then
-            local factionTexture = Constants and Constants:GetFactionTexture(mountData.faction)
-            if factionTexture then
-                factionIcon:SetTexture(factionTexture)
-                factionIcon:Show()
-            else
-                factionIcon:Hide()
-            end
-        else
-            factionIcon:Hide()
-        end
     end
 
     -- Afficher le modèle 3D si possible
